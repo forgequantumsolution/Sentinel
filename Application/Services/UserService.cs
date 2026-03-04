@@ -37,6 +37,16 @@ namespace Analytics_BE.Application.Services
             return user;
         }
 
+        public async Task UpdateUserAsync(User user)
+        {
+            await _userRepository.UpdateAsync(user);
+        }
+
+        public async Task DeleteUserAsync(Guid userId)
+        {
+            await _userRepository.DeleteAsync(userId);
+        }
+
         public async Task<bool> VerifyPasswordAsync(Guid userId, string password)
         {
             var user = await _userRepository.GetByIdAsync(userId);

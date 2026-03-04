@@ -64,34 +64,4 @@ namespace Analytics_BE.Infrastructure.Persistence.Repositories
             return await _context.Users.AnyAsync(u => u.Email == email);
         }
     }
-
-    public class RoleRepository : IRoleRepository
-    {
-        private readonly AppDbContext _context;
-
-        public RoleRepository(AppDbContext context)
-        {
-            _context = context;
-        }
-
-        public async Task<Role?> GetByNameAsync(string name)
-        {
-            return await _context.Roles.FirstOrDefaultAsync(r => r.Name == name);
-        }
-    }
-
-    public class DepartmentRepository : IDepartmentRepository
-    {
-        private readonly AppDbContext _context;
-
-        public DepartmentRepository(AppDbContext context)
-        {
-            _context = context;
-        }
-
-        public async Task<Department?> GetByNameAsync(string name)
-        {
-            return await _context.Departments.FirstOrDefaultAsync(d => d.Name == name);
-        }
-    }
 }

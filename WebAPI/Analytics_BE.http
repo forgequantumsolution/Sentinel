@@ -1,24 +1,78 @@
 @Analytics_BE_HostAddress = http://localhost:5126
 
-POST {{Analytics_BE_HostAddress}}/api/auth/register
-Content-Type: application/json
-
-{
-  "name": "Test User",
-  "email": "test@example.com",
-  "password": "Password123!",
-  "role": "user",
-  "department": "Engineering"
-}
-
-###
-
+### Login User
+# @name login
 POST {{Analytics_BE_HostAddress}}/api/auth/login
 Content-Type: application/json
 
 {
-  "email": "test@example.com",
-  "password": "Password123!"
+    "email": "dev@example.com",
+    "password": "Password123!"
 }
 
 ###
+
+### Variable Assignment from Login Response
+# IMPORTANT: Click "Send Request" on the 'Login User' request above FIRST to populate this variable.
+@authToken = {{login.response.body.token}}
+
+### Get Current User (Me)
+GET {{Analytics_BE_HostAddress}}/api/auth/me
+Authorization: Bearer {{authToken}}
+
+###
+
+### Users CRUD - Get All
+GET {{Analytics_BE_HostAddress}}/api/users
+Authorization: Bearer {{authToken}}
+
+###
+
+### Departments CRUD - Get All
+GET {{Analytics_BE_HostAddress}}/api/departments
+Authorization: Bearer {{authToken}}
+
+###
+
+### Roles CRUD - Get All
+GET {{Analytics_BE_HostAddress}}/api/roles
+Authorization: Bearer {{authToken}}
+
+###
+
+### Job Titles CRUD - Get All
+GET {{Analytics_BE_HostAddress}}/api/jobtitles
+Authorization: Bearer {{authToken}}
+
+###
+
+### User Groups CRUD - Get All
+GET {{Analytics_BE_HostAddress}}/api/usergroups
+Authorization: Bearer {{authToken}}
+
+###
+
+### Create Department Example
+POST {{Analytics_BE_HostAddress}}/api/departments
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+    "name": "Engineering",
+    "description": "Technical and software development",
+    "code": "ENG",
+    "isActive": true
+}
+
+###
+
+### Register User (For testing new signups)
+POST {{Analytics_BE_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+    "name": "New Developer",
+    "email": "dev@example.com",
+    "password": "Password123!",
+    "role": "user"
+}

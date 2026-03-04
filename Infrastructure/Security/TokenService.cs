@@ -21,11 +21,11 @@ namespace Analytics_BE.Infrastructure.Security
         {
             var claims = new[]
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Email),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim("userId", user.Id.ToString()),
-                new Claim("name", user.Name),
-                new Claim("role", user.Role?.Name ?? "user")
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Name, user.Name),
+                new Claim(ClaimTypes.Role, user.Role?.Name ?? "user"),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
             var jwtSecretKey = _configuration["Jwt:SecretKey"] ?? "VERY_SECRET_KEY_REPLACE_IN_PRODUCTION";

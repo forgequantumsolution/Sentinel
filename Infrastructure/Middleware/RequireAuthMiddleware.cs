@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using Microsoft.Extensions.DependencyInjection;
+using Analytics_BE.Application.Interfaces;
 
 namespace Analytics_BE.Infrastructure.Middleware
 {
@@ -27,25 +29,64 @@ namespace Analytics_BE.Infrastructure.Middleware
 
         public async Task InvokeAsync(HttpContext context)
         {
-            // Check if the current endpoint is public
             var path = context.Request.Path.ToString();
 
             if (IsPublicEndpoint(path))
             {
-                // Public endpoint, continue without authentication check
                 await _next(context);
                 return;
             }
 
-            // Check if user is authenticated
+            // Check if user is authenticated and claims are present
             if (context.User.Identity == null || !context.User.Identity.IsAuthenticated)
             {
+                var authHeader = context.Request.Headers["Authorization"].ToString();
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                await context.Response.WriteAsync("Authentication required");
+                context.Response.ContentType = "application/json";
+
+                if (string.IsNullOrEmpty(authHeader))
+                {
+                    await context.Response.WriteAsync("{\"message\": \"Authentication required: Authorization header is missing\"}");
+                }
+                else if (!authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                {
+                    await context.Response.WriteAsync("{\"message\": \"Authentication required: Authorization header must use Bearer scheme\"}");
+                }
+                else
+                {
+                    await context.Response.WriteAsync("{\"message\": \"Authentication required: Token validation failed (Check if token is expired or secret key mismatch)\"}");
+                }
                 return;
             }
 
-            // User is authenticated, continue to next middleware
+            // Fetch the user and put it in Items for easy access in controllers
+            var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (Guid.TryParse(userIdClaim, out var userId))
+            {
+                try
+                {
+                    // Using context services to get dependencies
+                    var userService = context.RequestServices.GetRequiredService<IUserService>();
+                    var user = await userService.GetUserByIdAsync(userId);
+                    
+                    if (user != null)
+                    {
+                        context.Items["User"] = user;
+                    }
+                    else
+                    {
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        context.Response.ContentType = "application/json";
+                        await context.Response.WriteAsync("{\"message\": \"User not found or account disabled\"}");
+                        return;
+                    }
+                }
+                catch
+                {
+                    // Fallback if service resolution fails, but continue if we're authenticated
+                }
+            }
+
             await _next(context);
         }
 

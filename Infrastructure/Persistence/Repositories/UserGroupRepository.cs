@@ -21,6 +21,11 @@ namespace Analytics_BE.Infrastructure.Persistence.Repositories
                 .FirstOrDefaultAsync(g => g.Id == id);
         }
 
+        public async Task<List<UserGroup>> GetAllAsync()
+        {
+            return await _context.UserGroups.ToListAsync();
+        }
+
         public async Task<List<UserGroup>> GetAllWithRulesAsync()
         {
             return await _context.UserGroups
@@ -39,6 +44,16 @@ namespace Analytics_BE.Infrastructure.Persistence.Repositories
         {
             _context.UserGroups.Update(group);
             await _context.SaveChangesAsync();
+        }
+
+        public async Task DeleteAsync(Guid id)
+        {
+            var group = await _context.UserGroups.FindAsync(id);
+            if (group != null)
+            {
+                group.IsDeleted = true;
+                await _context.SaveChangesAsync();
+            }
         }
     }
 }

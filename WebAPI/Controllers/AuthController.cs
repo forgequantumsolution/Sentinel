@@ -9,10 +9,12 @@ namespace Analytics_BE.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
+        private readonly IUserService _userService;
 
-        public AuthController(IAuthService authService)
+        public AuthController(IAuthService authService, IUserService userService)
         {
             _authService = authService;
+            _userService = userService;
         }
 
         [HttpPost("register")]
@@ -55,12 +57,54 @@ namespace Analytics_BE.Controllers
                         Role = user.Role?.Name,
                         Department = user.Department?.Name
                     },
-                    Token = token
+                    token = token
                 });
             }
             catch (Exception ex)
             {
                 return Unauthorized(ex.Message);
+            }
+        }
+
+        [HttpGet("me")]
+        public async Task<IActionResult> GetCurrentUser()
+        {
+            try
+            {
+                var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userIdClaim))
+                {
+                    return Unauthorized("User ID claim not found");
+                }
+
+                if (!Guid.TryParse(userIdClaim, out var userId))
+                {
+                    return BadRequest("Invalid User ID format");
+                }
+
+                var user = await _userService.GetUserByIdAsync(userId);
+                if (user == null)
+                {
+                    return NotFound("User not found");
+                }
+
+                return Ok(new
+                {
+                    user.Id,
+                    user.Name,
+                    user.Email,
+                    Role = user.Role?.Name,
+                    Department = user.Department?.Name,
+                    user.JobTitleId,
+                    JobTitle = user.JobTitle?.Title,
+                    user.Location,
+                    user.EmployeeId,
+                    user.Status
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
             }
         }
     }

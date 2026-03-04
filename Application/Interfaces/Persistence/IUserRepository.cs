@@ -12,14 +12,4 @@ namespace Analytics_BE.Application.Interfaces.Persistence
         Task DeleteAsync(Guid id);
         Task<bool> ExistsAsync(string email);
     }
-
-    public interface IRoleRepository
-    {
-        Task<Role?> GetByNameAsync(string name);
-    }
-
-    public interface IDepartmentRepository
-    {
-        Task<Department?> GetByNameAsync(string name);
-    }
 }
