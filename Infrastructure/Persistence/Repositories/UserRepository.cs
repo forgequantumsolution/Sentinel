@@ -1,0 +1,97 @@
+using Analytics_BE.Core.Entities;
+using Analytics_BE.Application.Interfaces.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace Analytics_BE.Infrastructure.Persistence.Repositories
+{
+    public class UserRepository : IUserRepository
+    {
+        private readonly AppDbContext _context;
+
+        public UserRepository(AppDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<User?> GetByIdAsync(Guid id)
+        {
+            return await _context.Users
+                .Include(u => u.Role)
+                .Include(u => u.Department)
+                .FirstOrDefaultAsync(u => u.Id == id);
+        }
+
+        public async Task<User?> GetByEmailAsync(string email)
+        {
+            return await _context.Users
+                .Include(u => u.Role)
+                .Include(u => u.Department)
+                .FirstOrDefaultAsync(u => u.Email == email);
+        }
+
+        public async Task<List<User>> GetAllAsync()
+        {
+            return await _context.Users
+                .Include(u => u.Role)
+                .Include(u => u.Department)
+                .ToListAsync();
+        }
+
+        public async Task AddAsync(User user)
+        {
+            await _context.Users.AddAsync(user);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task UpdateAsync(User user)
+        {
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task DeleteAsync(Guid id)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user != null)
+            {
+                user.IsDeleted = true;
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task<bool> ExistsAsync(string email)
+        {
+            return await _context.Users.AnyAsync(u => u.Email == email);
+        }
+    }
+
+    public class RoleRepository : IRoleRepository
+    {
+        private readonly AppDbContext _context;
+
+        public RoleRepository(AppDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<Role?> GetByNameAsync(string name)
+        {
+            return await _context.Roles.FirstOrDefaultAsync(r => r.Name == name);
+        }
+    }
+
+    public class DepartmentRepository : IDepartmentRepository
+    {
+        private readonly AppDbContext _context;
+
+        public DepartmentRepository(AppDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<Department?> GetByNameAsync(string name)
+        {
+            return await _context.Departments.FirstOrDefaultAsync(d => d.Name == name);
+        }
+    }
+}
