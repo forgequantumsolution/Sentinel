@@ -22,7 +22,7 @@ services:
       - "5126:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Host=host.docker.internal;Port=5432;Database=AnlytcDatabase;Username=analytics_user;Password=tlG9acxJPOMpU56RLx
+      - ConnectionStrings__DefaultConnection=Host=api.forgequantumsolution.com;Port=5432;Database=AnlytcDatabase;Username=analytics_user;Password=tlG9acxJPOMpU56RLx
       - Jwt__SecretKey=YourSuperSecretKeyThatIsAtLeast32CharactersLongForAnalyticsBE!
       - Jwt__Issuer=Analytics_BE
       - Jwt__Audience=Analytics_BE_Users
