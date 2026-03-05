@@ -1,0 +1,13 @@
+# Cloudflare Tunnel Configuration Example
+# Replace <TUNNEL_ID> with your actual tunnel ID after running 'cloudflared tunnel create'
+
+tunnel: <TUNNEL_ID>
+credentials-file: /path/to/credentials.json # Usually in ~/.cloudflared/<TUNNEL_ID>.json
+
+ingress:
+  # Map your domain/subdomain to the local .NET port
+  - hostname: analytics.yourdomain.com
+    service: http://localhost:5126
+  
+  # Catch-all rule (important)
+  - service: http_status:404
