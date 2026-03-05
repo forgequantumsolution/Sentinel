@@ -23,7 +23,7 @@ namespace Analytics_BE.Core.Entities
         public string PasswordHash { get; set; } = string.Empty;
 
         // Email verification fields
-        public bool IsEmailVerified { get; set; } = false;
+        public bool? IsEmailVerified { get; set; } = null;
         [JsonIgnore]
         public string? EmailVerificationToken { get; set; }
         [JsonIgnore]
