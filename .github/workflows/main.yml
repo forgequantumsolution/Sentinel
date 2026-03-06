@@ -36,3 +36,4 @@ jobs:
           docker rmi Analytics_BE-Analytics_BE-temp
           # Step 6: Run container using renamed image
           docker-compose up -d
+          exit
