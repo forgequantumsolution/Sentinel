@@ -28,9 +28,9 @@ jobs:
           docker ps -q --filter "ancestor=analytics_be" | xargs -r docker stop
           docker ps -aq --filter "ancestor=analytics_be" | xargs -r docker rm
           # Step 3: Remove old image
-          docker rmi analytics_be || true
+          docker rmi analytics_be-api || true
           # Step 4: Tag new image to old name
-          docker tag analytics_be-temp analytics_be
+          docker tag analytics_be-temp analytics_be-api
           # Step 5: Remove temp image tag
           docker rmi analytics_be-temp
           # Step 6: Run container using renamed image
