@@ -20,6 +20,7 @@ jobs:
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_KEY }}
         script: |
+          sudo -i
           cd /apps/Analytics_BE  # change this to your server's project path
           git pull
           # Step 1: Build image with a temp name
