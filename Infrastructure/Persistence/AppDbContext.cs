@@ -17,6 +17,8 @@ namespace Analytics_BE.Infrastructure.Persistence
         public DbSet<UserGroup> UserGroups { get; set; }
         public DbSet<DynamicGroupingRule> DynamicGroupingRules { get; set; }
         public DbSet<DynamicPermissionRule> DynamicPermissionRules { get; set; }
+        public DbSet<DynamicForm> DynamicForms { get; set; }
+        public DbSet<DynamicFormSubmission> DynamicFormSubmissions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

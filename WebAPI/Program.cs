@@ -41,9 +41,13 @@ builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
 builder.Services.AddScoped<IJobTitleRepository, JobTitleRepository>();
 builder.Services.AddScoped<IUserGroupRepository, UserGroupRepository>();
+builder.Services.AddScoped<IDynamicFormRepository, DynamicFormRepository>();
+builder.Services.AddScoped<IDynamicFormSubmissionRepository, DynamicFormSubmissionRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPermissionService, PermissionService>();
+builder.Services.AddScoped<Application.Interfaces.Services.IGraphService, Infrastructure.Services.GraphService>();
+builder.Services.AddScoped<Application.Interfaces.Services.IDataEntryService, Infrastructure.Services.DataEntryService>();
 builder.Services.AddHttpContextAccessor();
 
 // Configure JWT Authentication
