@@ -20,19 +20,19 @@ jobs:
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_KEY }}
         script: |
-          cd apps/Analytics_BE  # change this to your server's project path
+          cd apps/analytics_be  # change this to your server's project path
           git pull
           # Step 1: Build image with a temp name
-          docker build --no-cache -t Analytics_BE-Analytics_BE-temp .
+          docker build --no-cache -t analytics_be-temp .
           # Step 2: Stop and remove containers using old image
-          docker ps -q --filter "ancestor=Analytics_BE" | xargs -r docker stop
-          docker ps -aq --filter "ancestor=Analytics_BE" | xargs -r docker rm
+          docker ps -q --filter "ancestor=analytics_be" | xargs -r docker stop
+          docker ps -aq --filter "ancestor=analytics_be" | xargs -r docker rm
           # Step 3: Remove old image
-          docker rmi Analytics_BE-Analytics_BE || true
+          docker rmi analytics_be || true
           # Step 4: Tag new image to old name
-          docker tag Analytics_BE-Analytics_BE-temp Analytics_BE-Analytics_BE
+          docker tag analytics_be-temp analytics_be
           # Step 5: Remove temp image tag
-          docker rmi Analytics_BE-Analytics_BE-temp
+          docker rmi analytics_be-temp
           # Step 6: Run container using renamed image
           docker-compose up -d
           
