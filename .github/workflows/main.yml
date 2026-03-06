@@ -23,7 +23,7 @@ jobs:
           cd apps/Analytics_BE  # change this to your server's project path
           git pull
           # Step 1: Build image with a temp name
-          docker build --no-cache -t analytics_be-temp .
+          docker build --no-cache -t analytics_be-temp -f WebAPI/Dockerfile .
           # Step 2: Stop and remove containers using old image
           docker ps -q --filter "ancestor=analytics_be" | xargs -r docker stop
           docker ps -aq --filter "ancestor=analytics_be" | xargs -r docker rm
