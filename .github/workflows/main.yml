@@ -20,7 +20,7 @@ jobs:
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_KEY }}
         script: |
-          sudo bash
+          sudo bash -c '
           cd /root/apps/Analytics_BE  # change this to your server's project path
           git pull
           # Step 1: Build image with a temp name
@@ -35,5 +35,5 @@ jobs:
           # Step 5: Remove temp image tag
           docker rmi Analytics_BE-Analytics_BE-temp
           # Step 6: Run container using renamed image
-          docker-compose up -d
-          exit
+          docker-compose up -d'
+          
