@@ -21,7 +21,7 @@ jobs:
         key: ${{ secrets.SSH_KEY }}
         script: |
           sudo -i
-          cd /apps/Analytics_BE  # change this to your server's project path
+          cd apps/Analytics_BE  # change this to your server's project path
           git pull
           # Step 1: Build image with a temp name
           docker build --no-cache -t Analytics_BE-Analytics_BE-temp .
