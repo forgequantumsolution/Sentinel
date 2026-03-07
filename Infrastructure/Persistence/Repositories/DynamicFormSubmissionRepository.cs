@@ -1,10 +1,10 @@
 using Microsoft.EntityFrameworkCore;
-using Analytics_BE.Application.Interfaces.Persistence;
-using Analytics_BE.Core.Entities;
-using Analytics_BE.Infrastructure.Persistence;
+using Application.Interfaces.Persistence;
+using Core.Entities;
+using Infrastructure.Persistence;
 using Application.Common.Pagination;
 
-namespace Analytics_BE.Infrastructure.Persistence.Repositories
+namespace Infrastructure.Persistence.Repositories
 {
     public class DynamicFormSubmissionRepository : IDynamicFormSubmissionRepository
     {

@@ -1,9 +1,9 @@
-using Analytics_BE.Core.Entities;
-using Analytics_BE.Infrastructure.Persistence;
-using Analytics_BE.Application.Interfaces;
+using Core.Entities;
+using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Application.Interfaces.Services;
 
-namespace Analytics_BE.Infrastructure.Extensions
+namespace Infrastructure.Extensions
 {
     public static class UserExtension
     {

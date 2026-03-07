@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Analytics_BE.Core.Entities
+namespace Core.Entities
 {
     /// <summary>
     /// Represents a feature/module in the application.

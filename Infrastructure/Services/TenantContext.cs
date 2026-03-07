@@ -1,6 +1,6 @@
-using Analytics_BE.Application.Interfaces;
+using Application.Interfaces;
 
-namespace Analytics_BE.Infrastructure.Services
+namespace Infrastructure.Services
 {
     public class TenantContext : ITenantContext
     {

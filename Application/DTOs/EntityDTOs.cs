@@ -1,6 +1,6 @@
 using System;
 
-namespace Analytics_BE.Application.DTOs
+namespace Application.DTOs
 {
     public class DepartmentDto
     {
@@ -61,5 +61,41 @@ namespace Analytics_BE.Application.DTOs
     public class CreateUserRequest : UserDto
     {
         public string Password { get; set; } = string.Empty;
+    }
+
+    // ── RBAC DTOs ──
+    public class FeatureDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Code { get; set; }
+        public string? Description { get; set; }
+        public Guid? ParentFeatureId { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    public class AppPermissionDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Code { get; set; }
+        public string? Description { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    public class FeaturePermissionDto
+    {
+        public Guid FeatureId { get; set; }
+        public FeatureDto? Feature { get; set; }
+        public Guid PermissionId { get; set; }
+        public AppPermissionDto? Permission { get; set; }
+    }
+
+    public class UserFeaturesPermissionsDto
+    {
+        public Guid UserId { get; set; }
+        public string UserName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public List<FeaturePermissionDto> FeaturesPermissions { get; set; } = new();
     }
 }

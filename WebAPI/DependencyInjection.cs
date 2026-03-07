@@ -3,16 +3,18 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
-using Analytics_BE.Infrastructure.Persistence;
-using Analytics_BE.Infrastructure.Persistence.Repositories;
-using Analytics_BE.Infrastructure.Security;
-using Analytics_BE.Application.Services;
-using Analytics_BE.Application.Interfaces;
-using Analytics_BE.Application.Interfaces.Persistence;
+using Infrastructure.Persistence;
+using Infrastructure.Persistence.Repositories;
+using Infrastructure.Security;
+using Infrastructure.Services;
+using Application.Services;
+using Application.Interfaces;
+using Application.Interfaces.Persistence;
+using Application.Interfaces.Services;
 using Application.Interfaces.Services;
 using Infrastructure.Services;
 
-namespace Analytics_BE.WebAPI
+namespace WebAPI
 {
     public static class DependencyInjection
     {
@@ -36,7 +38,7 @@ namespace Analytics_BE.WebAPI
             services.AddScoped<ITokenService, TokenService>();
 
             // Multi-tenancy
-            services.AddScoped<ITenantContext, Analytics_BE.Infrastructure.Services.TenantContext>();
+            services.AddScoped<ITenantContext, Infrastructure.Services.TenantContext>();
 
             return services;
         }
@@ -46,6 +48,7 @@ namespace Analytics_BE.WebAPI
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IPermissionService, PermissionService>();
+            services.AddScoped<IRbacService, RbacService>();
             services.AddScoped<IGraphService, GraphService>();
             services.AddScoped<IDataEntryService, DataEntryService>();
 

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Dynamic.Core;
 using System.Threading.Tasks;
-using Analytics_BE.Infrastructure.Persistence;
+using Infrastructure.Persistence;
 using Application.Interfaces.Services;
 using Core.Models;
 using Microsoft.EntityFrameworkCore;

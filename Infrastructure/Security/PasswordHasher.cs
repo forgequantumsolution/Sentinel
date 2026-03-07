@@ -1,8 +1,8 @@
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
-using Analytics_BE.Application.Interfaces;
+using Application.Interfaces;
 
-namespace Analytics_BE.Infrastructure.Security
+namespace Infrastructure.Security
 {
     public class PasswordHasher : IPasswordHasher
     {

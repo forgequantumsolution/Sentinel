@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
-using Analytics_BE.Core.Enums;
+using Core.Enums;
 
-namespace Analytics_BE.Core.Entities
+namespace Core.Entities
 {
     public class Permission : TenantEntity
     {

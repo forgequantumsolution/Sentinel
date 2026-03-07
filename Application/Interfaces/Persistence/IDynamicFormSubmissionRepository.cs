@@ -1,7 +1,7 @@
-using Analytics_BE.Core.Entities;
+using Core.Entities;
 using Application.Common.Pagination;
 
-namespace Analytics_BE.Application.Interfaces.Persistence
+namespace Application.Interfaces.Persistence
 {
     public interface IDynamicFormSubmissionRepository
     {

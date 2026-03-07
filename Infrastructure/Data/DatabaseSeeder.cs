@@ -1,10 +1,10 @@
-using Analytics_BE.Core.Entities;
-using Analytics_BE.Core.Enums;
-using Analytics_BE.Application.Interfaces;
-using Analytics_BE.Infrastructure.Persistence;
+using Core.Entities;
+using Core.Enums;
+using Application.Interfaces;
+using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-namespace Analytics_BE.Infrastructure.Data
+namespace Infrastructure.Data
 {
     public static class DatabaseSeeder
     {

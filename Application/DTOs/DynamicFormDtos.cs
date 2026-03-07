@@ -1,6 +1,6 @@
 using System;
 
-namespace Analytics_BE.Application.DTOs
+namespace Application.DTOs
 {
     public class DynamicFormDto
     {

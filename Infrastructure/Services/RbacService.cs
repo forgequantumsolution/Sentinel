@@ -1,10 +1,10 @@
 using Microsoft.EntityFrameworkCore;
-using Analytics_BE.Application.Interfaces.Services;
-using Analytics_BE.Core.Entities;
-using Analytics_BE.Core.Enums;
-using Analytics_BE.Infrastructure.Persistence;
+using Application.Interfaces.Services;
+using Core.Entities;
+using Core.Enums;
+using Infrastructure.Persistence;
 
-namespace Analytics_BE.Infrastructure.Services
+namespace Infrastructure.Services
 {
     public class RbacService : IRbacService
     {

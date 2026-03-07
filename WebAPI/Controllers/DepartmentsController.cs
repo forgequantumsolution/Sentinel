@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
-using Analytics_BE.Application.Interfaces.Persistence;
-using Analytics_BE.Application.DTOs;
-using Analytics_BE.Core.Entities;
+using Application.Interfaces.Persistence;
+using Application.DTOs;
+using Core.Entities;
 
-namespace Analytics_BE.Controllers
+namespace Controllers
 {
     [ApiController]
     [Route("api/[controller]")]

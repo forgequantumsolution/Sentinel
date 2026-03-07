@@ -1,4 +1,4 @@
-namespace Analytics_BE.Core.Enums
+namespace Core.Enums
 {
     public enum PermissionType
     {

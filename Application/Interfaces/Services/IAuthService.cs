@@ -1,7 +1,7 @@
-using Analytics_BE.Application.DTOs;
-using Analytics_BE.Core.Entities;
+using Application.DTOs;
+using Core.Entities;
 
-namespace Analytics_BE.Application.Interfaces
+namespace Application.Interfaces.Services
 {
     public interface IAuthService
     {

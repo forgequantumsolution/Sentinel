@@ -1,12 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Analytics_BE.Application.DTOs;
-using Analytics_BE.Application.Interfaces.Persistence;
-using Analytics_BE.Core.Entities;
+using Application.DTOs;
+using Application.Interfaces.Persistence;
+using Core.Entities;
 using System.Security.Claims;
 using Application.Common.Pagination;
 
-namespace Analytics_BE.Controllers
+namespace Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -15,12 +15,12 @@ namespace Analytics_BE.Controllers
     {
         private readonly IDynamicFormRepository _formRepository;
         private readonly IDynamicFormSubmissionRepository _submissionRepository;
-        private readonly Analytics_BE.Infrastructure.Persistence.AppDbContext _context;
+        private readonly Infrastructure.Persistence.AppDbContext _context;
 
         public DynamicFormsController(
             IDynamicFormRepository formRepository,
             IDynamicFormSubmissionRepository submissionRepository,
-            Analytics_BE.Infrastructure.Persistence.AppDbContext context)
+            Infrastructure.Persistence.AppDbContext context)
         {
             _formRepository = formRepository;
             _submissionRepository = submissionRepository;

@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
-using Analytics_BE.Application.Interfaces.Persistence;
-using Analytics_BE.Application.DTOs;
-using Analytics_BE.Core.Entities;
+using Application.Interfaces.Persistence;
+using Application.DTOs;
+using Core.Entities;
 
-namespace Analytics_BE.Controllers
+namespace Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -59,7 +59,7 @@ namespace Analytics_BE.Controllers
             {
                 Name = dto.Name,
                 Description = dto.Description,
-                Type = (Analytics_BE.Core.Enums.GroupType)dto.Type,
+                Type = (Core.Enums.GroupType)dto.Type,
                 DepartmentId = dto.DepartmentId,
                 RoleId = dto.RoleId,
                 IsActive = dto.IsActive,
@@ -78,7 +78,7 @@ namespace Analytics_BE.Controllers
 
             item.Name = dto.Name;
             item.Description = dto.Description;
-            item.Type = (Analytics_BE.Core.Enums.GroupType)dto.Type;
+            item.Type = (Core.Enums.GroupType)dto.Type;
             item.DepartmentId = dto.DepartmentId;
             item.RoleId = dto.RoleId;
             item.IsActive = dto.IsActive;

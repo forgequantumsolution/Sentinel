@@ -1,8 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
-using Analytics_BE.Application.Interfaces;
-using Analytics_BE.Application.DTOs;
+using Application.Interfaces.Services;
+using Application.DTOs;
+using Application.Interfaces.Services;
 
-namespace Analytics_BE.Controllers
+namespace Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -10,11 +11,13 @@ namespace Analytics_BE.Controllers
     {
         private readonly IAuthService _authService;
         private readonly IUserService _userService;
+        private readonly IRbacService _rbacService;
 
-        public AuthController(IAuthService authService, IUserService userService)
+        public AuthController(IAuthService authService, IUserService userService, IRbacService rbacService)
         {
             _authService = authService;
             _userService = userService;
+            _rbacService = rbacService;
         }
 
         [HttpPost("register")]
@@ -88,6 +91,36 @@ namespace Analytics_BE.Controllers
                     return NotFound("User not found");
                 }
 
+                // Get user's feature-permission assignments
+                var assignments = await _rbacService.GetUserAssignmentsAsync(userId);
+
+                // Map to DTOs
+                var featuresPermissions = assignments
+                    .Where(a => a.IsActive && !a.IsDeleted)
+                    .Select(a => new FeaturePermissionDto
+                    {
+                        FeatureId = a.Feature.Id,
+                        Feature = new FeatureDto
+                        {
+                            Id = a.Feature.Id,
+                            Name = a.Feature.Name,
+                            Code = a.Feature.Code,
+                            Description = a.Feature.Description,
+                            ParentFeatureId = a.Feature.ParentFeatureId,
+                            IsActive = a.Feature.IsActive
+                        },
+                        PermissionId = a.Permission.Id,
+                        Permission = new AppPermissionDto
+                        {
+                            Id = a.Permission.Id,
+                            Name = a.Permission.Name,
+                            Code = a.Permission.Code,
+                            Description = a.Permission.Description,
+                            IsActive = a.Permission.IsActive
+                        }
+                    })
+                    .ToList();
+
                 return Ok(new
                 {
                     user.Id,
@@ -99,7 +132,8 @@ namespace Analytics_BE.Controllers
                     JobTitle = user.JobTitle?.Title,
                     user.Location,
                     user.EmployeeId,
-                    user.Status
+                    user.Status,
+                    FeaturesPermissions = featuresPermissions
                 });
             }
             catch (Exception ex)

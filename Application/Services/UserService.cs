@@ -1,8 +1,9 @@
-using Analytics_BE.Core.Entities;
-using Analytics_BE.Application.Interfaces;
-using Analytics_BE.Application.Interfaces.Persistence;
+using Core.Entities;
+using Application.Interfaces;
+using Application.Interfaces.Persistence;
+using Application.Interfaces.Services;
 
-namespace Analytics_BE.Application.Services
+namespace Application.Services
 {
     public class UserService : IUserService
     {

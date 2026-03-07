@@ -1,10 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Analytics_BE.Core.Interfaces;
-using Analytics_BE.Core.Enums;
+using Core.Interfaces;
+using Core.Enums;
 using System.Text.Json.Serialization;
 
-namespace Analytics_BE.Core.Entities
+namespace Core.Entities
 {
     public class User : TenantEntity, IRequestFlow
     {

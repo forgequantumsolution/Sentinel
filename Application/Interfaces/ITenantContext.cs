@@ -1,4 +1,4 @@
-namespace Analytics_BE.Application.Interfaces
+namespace Application.Interfaces
 {
     public interface ITenantContext
     {

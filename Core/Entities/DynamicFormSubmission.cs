@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Analytics_BE.Core.Entities
+namespace Core.Entities
 {
     public class DynamicFormSubmission : TenantEntity
     {

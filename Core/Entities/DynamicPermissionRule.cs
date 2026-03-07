@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Analytics_BE.Core.Entities
+namespace Core.Entities
 {
     public class DynamicPermissionRule : BaseDynamicRule<DynamicPermissionRule>
     {

@@ -1,6 +1,6 @@
-using Analytics_BE.Core.Entities;
+using Core.Entities;
 
-namespace Analytics_BE.Application.Interfaces.Persistence
+namespace Application.Interfaces.Persistence
 {
     public interface IUserGroupRepository
     {

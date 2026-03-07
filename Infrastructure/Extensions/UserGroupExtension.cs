@@ -1,9 +1,9 @@
-using Analytics_BE.Core.Entities;
-using Analytics_BE.Infrastructure.Persistence;
-using Analytics_BE.Core.Enums;
+using Core.Entities;
+using Infrastructure.Persistence;
+using Core.Enums;
 using Microsoft.EntityFrameworkCore;
 
-namespace Analytics_BE.Infrastructure.Extensions
+namespace Infrastructure.Extensions
 {
     public static class UserGroupExtension
     {

@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using Analytics_BE.Infrastructure.Persistence;
-using Analytics_BE.Infrastructure.Middleware;
-using Analytics_BE.Application.Interfaces;
-using Analytics_BE.Infrastructure.Data;
-using Analytics_BE.WebAPI;
+using Infrastructure.Persistence;
+using Infrastructure.Middleware;
+using Application.Interfaces;
+using Infrastructure.Data;
+using WebAPI;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,7 +33,7 @@ builder.Services.AddSwaggerConfig();
 var app = builder.Build();
 
 // Initialize Service Provider for extensions
-Analytics_BE.Infrastructure.Extensions.Provider.SetProvider(app.Services);
+Infrastructure.Extensions.Provider.SetProvider(app.Services);
 
 // Seed database
 using (var scope = app.Services.CreateScope())

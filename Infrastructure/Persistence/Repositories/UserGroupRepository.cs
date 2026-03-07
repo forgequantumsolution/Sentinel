@@ -1,8 +1,8 @@
-using Analytics_BE.Core.Entities;
-using Analytics_BE.Application.Interfaces.Persistence;
+using Core.Entities;
+using Application.Interfaces.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-namespace Analytics_BE.Infrastructure.Persistence.Repositories
+namespace Infrastructure.Persistence.Repositories
 {
     public class UserGroupRepository : IUserGroupRepository
     {

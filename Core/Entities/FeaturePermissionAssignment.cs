@@ -1,8 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Analytics_BE.Core.Enums;
+using Core.Enums;
 
-namespace Analytics_BE.Core.Entities
+namespace Core.Entities
 {
     /// <summary>
     /// Maps a Feature + Permission to an Assignee (Organization or User).

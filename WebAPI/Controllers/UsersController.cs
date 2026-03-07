@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
-using Analytics_BE.Application.Interfaces;
-using Analytics_BE.Application.DTOs;
-using Analytics_BE.Core.Entities;
+using Application.DTOs;
+using Core.Entities;
+using Application.Interfaces.Services;
 
-namespace Analytics_BE.Controllers
+namespace Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -76,7 +76,7 @@ namespace Analytics_BE.Controllers
                 JobTitleId = request.JobTitleId,
                 Location = request.Location,
                 EmployeeId = request.EmployeeId,
-                Status = (Analytics_BE.Core.Enums.RequestStatus)request.Status,
+                Status = (Core.Enums.RequestStatus)request.Status,
                 IsActive = request.IsActive,
                 CreatedAt = DateTime.UtcNow
             };
@@ -102,7 +102,7 @@ namespace Analytics_BE.Controllers
             user.JobTitleId = dto.JobTitleId;
             user.Location = dto.Location;
             user.EmployeeId = dto.EmployeeId;
-            user.Status = (Analytics_BE.Core.Enums.RequestStatus)dto.Status;
+            user.Status = (Core.Enums.RequestStatus)dto.Status;
             user.IsActive = dto.IsActive;
             user.UpdatedAt = DateTime.UtcNow;
 

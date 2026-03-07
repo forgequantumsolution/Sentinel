@@ -1,7 +1,7 @@
-using Analytics_BE.Core.Entities;
-using Analytics_BE.Core.Enums;
+using Core.Entities;
+using Core.Enums;
 
-namespace Analytics_BE.Application.Interfaces.Persistence
+namespace Application.Interfaces.Persistence
 {
     public interface IPermissionRepository
     {

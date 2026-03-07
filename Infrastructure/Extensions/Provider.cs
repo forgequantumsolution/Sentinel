@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Analytics_BE.Infrastructure.Extensions
+namespace Infrastructure.Extensions
 {
     public static class Provider
     {

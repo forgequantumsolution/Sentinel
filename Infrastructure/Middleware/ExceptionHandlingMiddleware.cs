@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Text.Json;
 
-namespace Analytics_BE.Infrastructure.Middleware
+namespace Infrastructure.Middleware
 {
     public class ExceptionHandlingMiddleware
     {

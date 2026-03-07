@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using Analytics_BE.Core.Entities;
-using Analytics_BE.Application.Interfaces;
+using Core.Entities;
+using Application.Interfaces;
 
-namespace Analytics_BE.Infrastructure.Persistence
+namespace Infrastructure.Persistence
 {
     public class AppDbContext : DbContext
     {

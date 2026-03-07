@@ -1,8 +1,8 @@
-using Analytics_BE.Core.Enums;
+using Core.Enums;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Analytics_BE.Core.Entities
+namespace Core.Entities
 {
     public abstract class BaseDynamicRule<T> : TenantEntity where T : class
     {

@@ -1,9 +1,9 @@
-using Analytics_BE.Core.Entities;
-using Analytics_BE.Core.Enums;
-using Analytics_BE.Application.Interfaces;
-using Analytics_BE.Application.Interfaces.Persistence;
+using Core.Entities;
+using Core.Enums;
+using Application.Interfaces.Persistence;
+using Application.Interfaces.Services;
 
-namespace Analytics_BE.Application.Services
+namespace Application.Services
 {
     public class PermissionService : IPermissionService
     {

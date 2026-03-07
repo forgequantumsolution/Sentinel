@@ -1,6 +1,6 @@
-using Analytics_BE.Core.Enums;
+using Core.Enums;
 
-namespace Analytics_BE.Core.Interfaces
+namespace Core.Interfaces
 {
     public interface IRequestFlow
     {

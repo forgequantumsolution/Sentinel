@@ -3,9 +3,10 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
-using Analytics_BE.Application.Interfaces;
+using Application.Interfaces;
+using Application.Interfaces.Services;
 
-namespace Analytics_BE.Infrastructure.Middleware
+namespace Infrastructure.Middleware
 {
     public class RequireAuthMiddleware
     {
