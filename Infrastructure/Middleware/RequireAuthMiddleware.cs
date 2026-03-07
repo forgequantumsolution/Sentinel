@@ -63,6 +63,14 @@ namespace Analytics_BE.Infrastructure.Middleware
             var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (Guid.TryParse(userIdClaim, out var userId))
             {
+                // Set organization context from JWT claim
+                var orgIdClaim = context.User.FindFirst("OrganizationId")?.Value;
+                if (Guid.TryParse(orgIdClaim, out var orgId))
+                {
+                    var tenantContext = context.RequestServices.GetRequiredService<ITenantContext>();
+                    tenantContext.SetOrganizationId(orgId);
+                }
+
                 try
                 {
                     // Using context services to get dependencies

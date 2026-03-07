@@ -17,7 +17,9 @@ namespace Analytics_BE.Infrastructure.Persistence.Repositories
 
         public async Task<DynamicForm?> GetByIdAsync(Guid id)
         {
-            return await _context.DynamicForms.FindAsync(id);
+            return await _context.DynamicForms
+                .Include(f => f.FieldDefinitions)
+                .FirstOrDefaultAsync(f => f.Id == id);
         }
 
         public async Task<PagedResult<DynamicForm>> GetAllAsync(PageRequest pageRequest)

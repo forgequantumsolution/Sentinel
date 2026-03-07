@@ -15,13 +15,16 @@ namespace Analytics_BE.Controllers
     {
         private readonly IDynamicFormRepository _formRepository;
         private readonly IDynamicFormSubmissionRepository _submissionRepository;
+        private readonly Analytics_BE.Infrastructure.Persistence.AppDbContext _context;
 
         public DynamicFormsController(
             IDynamicFormRepository formRepository,
-            IDynamicFormSubmissionRepository submissionRepository)
+            IDynamicFormSubmissionRepository submissionRepository,
+            Analytics_BE.Infrastructure.Persistence.AppDbContext context)
         {
             _formRepository = formRepository;
             _submissionRepository = submissionRepository;
+            _context = context;
         }
 
         [HttpGet]
@@ -87,7 +90,15 @@ namespace Analytics_BE.Controllers
                 ConfigJson = dto.ConfigJson,
                 IsActive = dto.IsActive,
                 CreatedAt = DateTime.UtcNow,
-                CreatedById = userId
+                CreatedById = userId,
+                FieldDefinitions = dto.FieldDefinitions?.Select(fd => new DynamicFormFieldDefinition
+                {
+                    ColumnName = fd.ColumnName,
+                    FieldName = fd.FieldName,
+                    FieldType = fd.FieldType,
+                    IsRequired = fd.IsRequired,
+                    ValidationRules = fd.ValidationRules
+                }).ToList() ?? new List<DynamicFormFieldDefinition>()
             };
 
             await _formRepository.AddAsync(form);
@@ -158,6 +169,51 @@ namespace Analytics_BE.Controllers
             };
 
             await _submissionRepository.AddAsync(submission);
+
+            // Dynamically populate columns in DynamicFormRecord
+            try
+            {
+                var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var dataDict = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>>(dto.DataJson, options);
+
+                if (dataDict != null && form.FieldDefinitions != null)
+                {
+                    var record = new DynamicFormRecord 
+                    { 
+                        FormId = id, 
+                        CreatedById = userId, 
+                        CreatedAt = DateTime.UtcNow 
+                    };
+
+                    foreach (var fieldDef in form.FieldDefinitions)
+                    {
+                        // Match either FieldName or ColumnName from incoming JSON
+                        System.Text.Json.JsonElement jsonElement;
+                        bool found = dataDict.TryGetValue(fieldDef.FieldName, out jsonElement) || 
+                                     dataDict.TryGetValue(fieldDef.ColumnName, out jsonElement);
+
+                        if (found)
+                        {
+                            var stringValue = jsonElement.ValueKind == System.Text.Json.JsonValueKind.String 
+                                ? jsonElement.GetString() 
+                                : jsonElement.GetRawText();
+
+                            var prop = typeof(DynamicFormRecord).GetProperty(fieldDef.ColumnName);
+                            if (prop != null && prop.CanWrite)
+                            {
+                                prop.SetValue(record, stringValue);
+                            }
+                        }
+                    }
+
+                    _context.DynamicFormRecords.Add(record);
+                    await _context.SaveChangesAsync();
+                }
+            }
+            catch (Exception)
+            {
+                // Handle JSON deserialization or reflection errors silently or log them
+            }
 
             var resultDto = new DynamicFormSubmissionDto
             {

@@ -17,5 +17,11 @@ namespace Analytics_BE.Core.Entities
 
         [ForeignKey("CreatedById")]
         public virtual User? CreatedBy { get; set; } = null!;
+
+        // Multi-tenancy: Organization scope
+        public Guid? OrganizationId { get; set; }
+
+        [ForeignKey("OrganizationId")]
+        public virtual Organization? Organization { get; set; }
     }
 }

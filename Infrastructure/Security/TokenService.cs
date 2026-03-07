@@ -19,7 +19,7 @@ namespace Analytics_BE.Infrastructure.Security
 
         public string GenerateJwtToken(User user)
         {
-            var claims = new[]
+            var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email),
@@ -27,6 +27,12 @@ namespace Analytics_BE.Infrastructure.Security
                 new Claim(ClaimTypes.Role, user.Role?.Name ?? "user"),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
+
+            // Add OrganizationId claim for multi-tenancy
+            if (user.OrganizationId.HasValue)
+            {
+                claims.Add(new Claim("OrganizationId", user.OrganizationId.Value.ToString()));
+            }
 
             var jwtSecretKey = _configuration["Jwt:SecretKey"] ?? "VERY_SECRET_KEY_REPLACE_IN_PRODUCTION";
             var jwtIssuer = _configuration["Jwt:Issuer"] ?? "Analytics_BE";

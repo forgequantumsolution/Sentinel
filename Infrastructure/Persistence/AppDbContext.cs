@@ -1,14 +1,19 @@
 using Microsoft.EntityFrameworkCore;
 using Analytics_BE.Core.Entities;
+using Analytics_BE.Application.Interfaces;
 
 namespace Analytics_BE.Infrastructure.Persistence
 {
     public class AppDbContext : DbContext
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
+        private readonly ITenantContext? _tenantContext;
+
+        public AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext? tenantContext = null) : base(options)
         {
+            _tenantContext = tenantContext;
         }
 
+        public DbSet<Organization> Organizations { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<Role> Roles { get; set; }
         public DbSet<Permission> Permissions { get; set; }
@@ -19,10 +24,47 @@ namespace Analytics_BE.Infrastructure.Persistence
         public DbSet<DynamicPermissionRule> DynamicPermissionRules { get; set; }
         public DbSet<DynamicForm> DynamicForms { get; set; }
         public DbSet<DynamicFormSubmission> DynamicFormSubmissions { get; set; }
+        public DbSet<DynamicFormRecord> DynamicFormRecords { get; set; }
+        public DbSet<DynamicFormFieldDefinition> DynamicFormFieldDefinitions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            // ── Global query filters for multi-tenancy ──
+            var currentOrgId = _tenantContext?.OrganizationId;
+
+            modelBuilder.Entity<User>()
+                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
+
+            modelBuilder.Entity<Role>()
+                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
+
+            modelBuilder.Entity<Department>()
+                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
+
+            modelBuilder.Entity<JobTitle>()
+                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
+
+            modelBuilder.Entity<UserGroup>()
+                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
+
+            modelBuilder.Entity<DynamicForm>()
+                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
+
+            modelBuilder.Entity<DynamicFormSubmission>()
+                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
+
+            modelBuilder.Entity<DynamicFormRecord>()
+                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
+
+            modelBuilder.Entity<DynamicFormFieldDefinition>()
+                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
+
+            modelBuilder.Entity<Permission>()
+                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
+
+            // ── Existing configurations ──
 
             // Role configuration
             modelBuilder.Entity<Role>(entity =>
@@ -88,5 +130,32 @@ namespace Analytics_BE.Infrastructure.Persistence
                     v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
                 );
         }
+
+        // Auto-set OrganizationId on new entities
+        public override int SaveChanges()
+        {
+            SetOrganizationIdOnNewEntities();
+            return base.SaveChanges();
+        }
+
+        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            SetOrganizationIdOnNewEntities();
+            return await base.SaveChangesAsync(cancellationToken);
+        }
+
+        private void SetOrganizationIdOnNewEntities()
+        {
+            if (_tenantContext?.OrganizationId == null) return;
+
+            var entries = ChangeTracker.Entries<BaseEntity>()
+                .Where(e => e.State == EntityState.Added && e.Entity.OrganizationId == null);
+
+            foreach (var entry in entries)
+            {
+                entry.Entity.OrganizationId = _tenantContext.OrganizationId;
+            }
+        }
     }
 }
+

@@ -21,5 +21,7 @@ namespace Analytics_BE.Core.Entities
         
         // Navigation properties
         public virtual ICollection<DynamicFormSubmission> Submissions { get; set; } = new List<DynamicFormSubmission>();
+        public virtual ICollection<DynamicFormRecord> Records { get; set; } = new List<DynamicFormRecord>();
+        public virtual ICollection<DynamicFormFieldDefinition> FieldDefinitions { get; set; } = new List<DynamicFormFieldDefinition>();
     }
 }

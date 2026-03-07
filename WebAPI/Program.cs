@@ -1,16 +1,9 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
-using System.Text;
 using Analytics_BE.Infrastructure.Persistence;
-using Analytics_BE.Infrastructure.Persistence.Repositories;
 using Analytics_BE.Infrastructure.Middleware;
-using Analytics_BE.Infrastructure.Security;
-using Analytics_BE.Application.Services;
 using Analytics_BE.Application.Interfaces;
-using Analytics_BE.Application.Interfaces.Persistence;
 using Analytics_BE.Infrastructure.Data;
+using Analytics_BE.WebAPI;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -28,97 +21,14 @@ builder.Host.UseSerilog();
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-
-// Add Entity Framework (PostgreSQL)
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-// Add DI Services
-builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
-builder.Services.AddScoped<ITokenService, TokenService>();
-builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<IRoleRepository, RoleRepository>();
-builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
-builder.Services.AddScoped<IJobTitleRepository, JobTitleRepository>();
-builder.Services.AddScoped<IUserGroupRepository, UserGroupRepository>();
-builder.Services.AddScoped<IDynamicFormRepository, DynamicFormRepository>();
-builder.Services.AddScoped<IDynamicFormSubmissionRepository, DynamicFormSubmissionRepository>();
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IPermissionService, PermissionService>();
-builder.Services.AddScoped<Application.Interfaces.Services.IGraphService, Infrastructure.Services.GraphService>();
-builder.Services.AddScoped<Application.Interfaces.Services.IDataEntryService, Infrastructure.Services.DataEntryService>();
 builder.Services.AddHttpContextAccessor();
 
-// Configure JWT Authentication
-var jwtSecretKey = builder.Configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("JWT Secret Key is not configured");
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("JWT Issuer is not configured");
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? throw new InvalidOperationException("JWT Audience is not configured");
-
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.RequireHttpsMetadata = false; // For local dev
-        options.SaveToken = true;
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtIssuer,
-            ValidAudience = jwtAudience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecretKey)),
-            ClockSkew = TimeSpan.Zero // Immediate expiration check
-        };
-    });
-
-builder.Services.AddAuthorization();
-
-// Add CORS
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
-});
-
-// Configure Swagger
-builder.Services.AddSwaggerGen(options =>
-{
-    options.SwaggerDoc("v1", new OpenApiInfo
-    {
-        Title = "Analytics BE API",
-        Version = "v1"
-    });
-
-    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
-        Name = "Authorization",
-        In = ParameterLocation.Header,
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
-    });
-
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
-    });
-});
+// Register all dependencies
+builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddApplicationServices();
+builder.Services.AddAuthenticationConfig(builder.Configuration);
+builder.Services.AddCorsConfig();
+builder.Services.AddSwaggerConfig();
 
 var app = builder.Build();
 
@@ -181,3 +91,4 @@ finally
 {
     Log.CloseAndFlush();
 }
+
