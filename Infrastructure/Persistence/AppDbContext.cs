@@ -26,6 +26,9 @@ namespace Analytics_BE.Infrastructure.Persistence
         public DbSet<DynamicFormSubmission> DynamicFormSubmissions { get; set; }
         public DbSet<DynamicFormRecord> DynamicFormRecords { get; set; }
         public DbSet<DynamicFormFieldDefinition> DynamicFormFieldDefinitions { get; set; }
+        public DbSet<Feature> Features { get; set; }
+        public DbSet<AppPermission> AppPermissions { get; set; }
+        public DbSet<FeaturePermissionAssignment> FeaturePermissionAssignments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -62,6 +65,15 @@ namespace Analytics_BE.Infrastructure.Persistence
                 .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
 
             modelBuilder.Entity<Permission>()
+                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
+
+            modelBuilder.Entity<Feature>();
+                //.HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
+
+            modelBuilder.Entity<AppPermission>();
+                //.HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
+
+            modelBuilder.Entity<FeaturePermissionAssignment>()
                 .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
 
             // ── Existing configurations ──
@@ -129,6 +141,42 @@ namespace Analytics_BE.Infrastructure.Persistence
                     v => string.Join(',', v),
                     v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
                 );
+
+            // ── RBAC configurations ──
+
+            // Feature: unique code, hierarchical parent-child
+            modelBuilder.Entity<Feature>(entity =>
+            {
+                entity.HasIndex(f => f.Code).IsUnique();
+
+                entity.HasOne(f => f.ParentFeature)
+                      .WithMany(f => f.ChildFeatures)
+                      .HasForeignKey(f => f.ParentFeatureId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // AppPermission: unique code
+            modelBuilder.Entity<AppPermission>(entity =>
+            {
+                entity.HasIndex(p => p.Code).IsUnique();
+            });
+
+            // FeaturePermissionAssignment: composite unique index to prevent duplicate grants
+            modelBuilder.Entity<FeaturePermissionAssignment>(entity =>
+            {
+                entity.HasIndex(a => new { a.FeatureId, a.PermissionId, a.AssigneeType, a.AssigneeId })
+                      .IsUnique();
+
+                entity.HasOne(a => a.Feature)
+                      .WithMany(f => f.Assignments)
+                      .HasForeignKey(a => a.FeatureId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(a => a.Permission)
+                      .WithMany(p => p.Assignments)
+                      .HasForeignKey(a => a.PermissionId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
         }
 
         // Auto-set OrganizationId on new entities
@@ -148,7 +196,7 @@ namespace Analytics_BE.Infrastructure.Persistence
         {
             if (_tenantContext?.OrganizationId == null) return;
 
-            var entries = ChangeTracker.Entries<BaseEntity>()
+            var entries = ChangeTracker.Entries<TenantEntity>()
                 .Where(e => e.State == EntityState.Added && e.Entity.OrganizationId == null);
 
             foreach (var entry in entries)

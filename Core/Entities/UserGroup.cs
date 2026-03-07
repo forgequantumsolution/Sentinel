@@ -4,7 +4,7 @@ using Analytics_BE.Core.Enums;
 
 namespace Analytics_BE.Core.Entities
 {
-    public class UserGroup : BaseEntity
+    public class UserGroup : TenantEntity
     {
         [Required]
         [MaxLength(100)]

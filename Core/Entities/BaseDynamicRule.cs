@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Analytics_BE.Core.Entities
 {
-    public abstract class BaseDynamicRule<T> : BaseEntity where T : class
+    public abstract class BaseDynamicRule<T> : TenantEntity where T : class
     {
         [Required]
         [MaxLength(255)]

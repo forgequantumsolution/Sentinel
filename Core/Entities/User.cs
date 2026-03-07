@@ -6,7 +6,7 @@ using System.Text.Json.Serialization;
 
 namespace Analytics_BE.Core.Entities
 {
-    public class User : BaseEntity, IRequestFlow
+    public class User : TenantEntity, IRequestFlow
     {
         [Required]
         [MaxLength(100)]

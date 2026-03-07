@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Analytics_BE.Core.Entities
 {
-    public class DynamicFormSubmission : BaseEntity
+    public class DynamicFormSubmission : TenantEntity
     {
         [Required]
         public Guid FormId { get; set; }

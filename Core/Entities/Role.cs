@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Analytics_BE.Core.Entities
 {
-    public class Role : BaseEntity
+    public class Role : TenantEntity
     {
         [Required]
         [MaxLength(50)]

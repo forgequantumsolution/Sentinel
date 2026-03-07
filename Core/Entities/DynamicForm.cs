@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Analytics_BE.Core.Entities
 {
-    public class DynamicForm : BaseEntity
+    public class DynamicForm : TenantEntity
     {
         [Required]
         [MaxLength(255)]

@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Analytics_BE.Core.Entities
 {
-    public class Department : BaseEntity
+    public class Department : TenantEntity
     {
         [Required]
         [MaxLength(100)]

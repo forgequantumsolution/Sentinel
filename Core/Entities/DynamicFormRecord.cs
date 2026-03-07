@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Analytics_BE.Core.Entities
 {
-    public class DynamicFormRecord : BaseEntity
+    public class DynamicFormRecord : TenantEntity
     {
         [Required]
         public Guid FormId { get; set; }

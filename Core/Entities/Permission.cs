@@ -3,7 +3,7 @@ using Analytics_BE.Core.Enums;
 
 namespace Analytics_BE.Core.Entities
 {
-    public class Permission : BaseEntity
+    public class Permission : TenantEntity
     {
         [Required]
         [MaxLength(255)]
