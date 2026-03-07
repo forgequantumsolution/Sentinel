@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Application.Common.Filtering;
 using Application.Common.Sorting;
+using Application.Interfaces;
 
 namespace Application.Common.Pagination;
 
@@ -23,5 +24,5 @@ public class PageRequest
 
     public List<SortDescriptor>? Sorts { get; set; }
 
-    public CompositeFilterDescriptor? Filter { get; set; }
+    public IFilterDescriptor? Filter { get; set; }
 }

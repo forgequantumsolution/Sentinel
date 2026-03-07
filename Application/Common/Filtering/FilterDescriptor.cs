@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Application.Interfaces;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Application.Common.Filtering;
 
-public class FilterDescriptor
+public class FilterDescriptor: IFilterDescriptor
 {
     public string Field { get; set; } = default!;
     public FilterOperator Operator { get; set; }
