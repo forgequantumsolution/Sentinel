@@ -49,8 +49,6 @@ namespace WebAPI
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IPermissionService, PermissionService>();
             services.AddScoped<IRbacService, RbacService>();
-            services.AddScoped<IGraphService, GraphService>();
-            services.AddScoped<IDataEntryService, DataEntryService>();
 
             return services;
         }
