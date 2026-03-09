@@ -11,8 +11,6 @@ using Application.Services;
 using Application.Interfaces;
 using Application.Interfaces.Persistence;
 using Application.Interfaces.Services;
-using Application.Interfaces.Services;
-using Infrastructure.Services;
 
 namespace WebAPI
 {
@@ -32,6 +30,8 @@ namespace WebAPI
             services.AddScoped<IUserGroupRepository, UserGroupRepository>();
             services.AddScoped<IDynamicFormRepository, DynamicFormRepository>();
             services.AddScoped<IDynamicFormSubmissionRepository, DynamicFormSubmissionRepository>();
+            services.AddScoped<IGraphConfigRepository, GraphConfigRepository>();
+            services.AddScoped<IGraphDataDefinitionRepository, GraphDataDefinitionRepository>();
 
             // Security
             services.AddScoped<IPasswordHasher, PasswordHasher>();
@@ -49,6 +49,7 @@ namespace WebAPI
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IPermissionService, PermissionService>();
             services.AddScoped<IRbacService, RbacService>();
+            services.AddScoped<IGraphService, GraphService>();
 
             return services;
         }
@@ -130,6 +131,9 @@ namespace WebAPI
                         Array.Empty<string>()
                     }
                 });
+
+                // Custom schema ID to avoid conflicts between duplicate type names
+                options.CustomSchemaIds(type => type.FullName?.Replace("+", "."));
             });
 
             return services;

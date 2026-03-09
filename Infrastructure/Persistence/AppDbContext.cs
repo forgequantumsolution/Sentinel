@@ -29,6 +29,8 @@ namespace Infrastructure.Persistence
         public DbSet<Feature> Features { get; set; }
         public DbSet<AppPermission> AppPermissions { get; set; }
         public DbSet<FeaturePermissionAssignment> FeaturePermissionAssignments { get; set; }
+        public DbSet<GraphConfigEntity> GraphConfigs { get; set; }
+        public DbSet<GraphDataDefinitionEntity> GraphDataDefinitions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -74,6 +76,12 @@ namespace Infrastructure.Persistence
                 //.HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
 
             modelBuilder.Entity<FeaturePermissionAssignment>()
+                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
+
+            modelBuilder.Entity<GraphConfigEntity>()
+                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
+
+            modelBuilder.Entity<GraphDataDefinitionEntity>()
                 .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
 
             // ── Existing configurations ──

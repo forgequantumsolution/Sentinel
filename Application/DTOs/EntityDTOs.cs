@@ -98,4 +98,46 @@ namespace Application.DTOs
         public string Email { get; set; } = string.Empty;
         public List<FeaturePermissionDto> FeaturesPermissions { get; set; } = new();
     }
+
+    // ── Graph DTOs ──
+    public class GraphConfigDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int Type { get; set; } // GraphType enum
+        public Core.Models.GraphViewConfig View { get; set; } = new();
+        public Core.Models.GraphDataConfig Data { get; set; } = new();
+        public Dictionary<string, object>? Meta { get; set; }
+        public bool IsActive { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+        public Guid? CreatedById { get; set; }
+        public Guid? OrganizationId { get; set; }
+    }
+
+    public class GraphDataDefinitionDto
+    {
+        public Guid Id { get; set; }
+        public Guid GraphConfigId { get; set; }
+        public Core.Models.DataSourceDefinition Source { get; set; } = new();
+        public List<Core.Models.SeriesCalculation> SeriesCalculations { get; set; } = new();
+        public Core.Models.FilterGroup? GlobalFilter { get; set; }
+        public List<Core.Models.SortRule>? SortRules { get; set; }
+        public int? RowLimit { get; set; }
+        public bool IsActive { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+        public Guid? CreatedById { get; set; }
+        public Guid? OrganizationId { get; set; }
+    }
+
+    public class CreateGraphConfigRequest : GraphConfigDto
+    {
+        // Additional properties for creation if needed
+    }
+
+    public class CreateGraphDataDefinitionRequest : GraphDataDefinitionDto
+    {
+        // Additional properties for creation if needed
+    }
 }
