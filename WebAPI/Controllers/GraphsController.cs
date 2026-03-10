@@ -152,7 +152,7 @@ namespace Controllers
             var dtos = dataDefinitions.Select(d => new GraphDataDefinitionDto
             {
                 Id = d.Id,
-                GraphConfigId = Guid.Parse(d.GraphConfigId),
+                GraphConfigId = d.GraphConfigId,
                 Source = d.Source,
                 SeriesCalculations = d.SeriesCalculations,
                 GlobalFilter = d.GlobalFilter,
@@ -176,7 +176,7 @@ namespace Controllers
             var dto = new GraphDataDefinitionDto
             {
                 Id = dataDefinition.Id,
-                GraphConfigId = Guid.Parse(dataDefinition.GraphConfigId),
+                GraphConfigId = dataDefinition.GraphConfigId,
                 Source = dataDefinition.Source,
                 SeriesCalculations = dataDefinition.SeriesCalculations,
                 GlobalFilter = dataDefinition.GlobalFilter,
@@ -200,7 +200,7 @@ namespace Controllers
             var dto = new GraphDataDefinitionDto
             {
                 Id = dataDefinition.Id,
-                GraphConfigId = Guid.Parse(dataDefinition.GraphConfigId),
+                GraphConfigId = dataDefinition.GraphConfigId,
                 Source = dataDefinition.Source,
                 SeriesCalculations = dataDefinition.SeriesCalculations,
                 GlobalFilter = dataDefinition.GlobalFilter,
@@ -223,7 +223,7 @@ namespace Controllers
             var dto = new GraphDataDefinitionDto
             {
                 Id = dataDefinition.Id,
-                GraphConfigId = Guid.Parse(dataDefinition.GraphConfigId),
+                GraphConfigId = dataDefinition.GraphConfigId,
                 Source = dataDefinition.Source,
                 SeriesCalculations = dataDefinition.SeriesCalculations,
                 GlobalFilter = dataDefinition.GlobalFilter,

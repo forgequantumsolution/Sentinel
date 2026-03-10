@@ -26,7 +26,7 @@ namespace Infrastructure.Persistence.Repositories
         {
             return await _context.GraphDataDefinitions
                 .Include(g => g.GraphConfig)
-                .FirstOrDefaultAsync(g => g.GraphConfigId == graphConfigId.ToString());
+                .FirstOrDefaultAsync(g => g.GraphConfigId == graphConfigId);
         }
 
         public async Task<List<GraphDataDefinitionEntity>> GetAllAsync()
@@ -73,7 +73,7 @@ namespace Infrastructure.Persistence.Repositories
         public async Task DeleteByGraphConfigIdAsync(Guid graphConfigId)
         {
             var graphDataDefinitions = await _context.GraphDataDefinitions
-                .Where(g => g.GraphConfigId == graphConfigId.ToString())
+                .Where(g => g.GraphConfigId == graphConfigId)
                 .ToListAsync();
             
             foreach (var graphDataDefinition in graphDataDefinitions)

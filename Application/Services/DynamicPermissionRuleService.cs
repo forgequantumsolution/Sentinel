@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Core.Entities;
 using Application.DTOs;
+using Application.Interfaces;
 using Application.Interfaces.Persistence;
 using Application.Interfaces.Services;
 
@@ -10,13 +11,16 @@ namespace Application.Services
     {
         private readonly IDynamicPermissionRuleRepository _ruleRepository;
         private readonly IUserRepository _userRepository;
+        private readonly ITenantContext _tenantContext;
 
         public DynamicPermissionRuleService(
             IDynamicPermissionRuleRepository ruleRepository,
-            IUserRepository userRepository)
+            IUserRepository userRepository,
+            ITenantContext tenantContext)
         {
             _ruleRepository = ruleRepository;
             _userRepository = userRepository;
+            _tenantContext = tenantContext;
         }
 
         public async Task<DynamicPermissionRuleDto?> GetByIdAsync(Guid id)

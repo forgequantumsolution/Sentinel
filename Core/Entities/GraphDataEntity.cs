@@ -9,7 +9,7 @@ public class GraphDataDefinitionEntity : TenantEntity
 
     /// <summary>FK → GraphConfigs.Id (one-to-one)</summary>
     [Required]
-    public string GraphConfigId { get; set; } = string.Empty;
+    public Guid GraphConfigId { get; set; }
 
     // ─── JSON Columns ─────────────────────────────────────────────────────────
 

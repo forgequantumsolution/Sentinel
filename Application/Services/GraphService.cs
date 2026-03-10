@@ -102,7 +102,7 @@ namespace Application.Services
         {
             var graphDataDefinition = new GraphDataDefinitionEntity
             {
-                GraphConfigId = graphDataDefinitionDto.GraphConfigId.ToString(),
+                GraphConfigId = graphDataDefinitionDto.GraphConfigId,
                 Source = graphDataDefinitionDto.Source,
                 SeriesCalculations = graphDataDefinitionDto.SeriesCalculations,
                 GlobalFilter = graphDataDefinitionDto.GlobalFilter,
@@ -122,7 +122,7 @@ namespace Application.Services
             if (graphDataDefinition == null)
                 throw new KeyNotFoundException($"GraphDataDefinition with id {id} not found");
 
-            graphDataDefinition.GraphConfigId = graphDataDefinitionDto.GraphConfigId.ToString();
+            graphDataDefinition.GraphConfigId = graphDataDefinitionDto.GraphConfigId;
             graphDataDefinition.Source = graphDataDefinitionDto.Source;
             graphDataDefinition.SeriesCalculations = graphDataDefinitionDto.SeriesCalculations;
             graphDataDefinition.GlobalFilter = graphDataDefinitionDto.GlobalFilter;
