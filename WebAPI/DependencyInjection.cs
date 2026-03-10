@@ -32,6 +32,8 @@ namespace WebAPI
             services.AddScoped<IDynamicFormSubmissionRepository, DynamicFormSubmissionRepository>();
             services.AddScoped<IGraphConfigRepository, GraphConfigRepository>();
             services.AddScoped<IGraphDataDefinitionRepository, GraphDataDefinitionRepository>();
+            services.AddScoped<IDynamicGroupingRuleRepository, DynamicGroupingRuleRepository>();
+            services.AddScoped<IDynamicPermissionRuleRepository, DynamicPermissionRuleRepository>();
 
             // Security
             services.AddScoped<IPasswordHasher, PasswordHasher>();
@@ -48,8 +50,10 @@ namespace WebAPI
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IPermissionService, PermissionService>();
-            services.AddScoped<IRbacService, RbacService>();
+            services.AddScoped<IRbacService, RbacService>(); 
             services.AddScoped<IGraphService, GraphService>();
+            services.AddScoped<IDynamicGroupingRuleService, DynamicGroupingRuleService>();
+            services.AddScoped<IDynamicPermissionRuleService, DynamicPermissionRuleService>();
 
             return services;
         }
