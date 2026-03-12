@@ -45,5 +45,22 @@ namespace Infrastructure.Persistence.Repositories
             await _context.DynamicFormSubmissions.AddAsync(submission);
             await _context.SaveChangesAsync();
         }
+
+        public async Task UpdateAsync(DynamicFormSubmission submission)
+        {
+            _context.DynamicFormSubmissions.Update(submission);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task DeleteAsync(Guid id)
+        {
+            var submission = await _context.DynamicFormSubmissions.FindAsync(id);
+            if (submission != null)
+            {
+                submission.IsDeleted = true;
+                submission.DeletedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+            }
+        }
     }
 }

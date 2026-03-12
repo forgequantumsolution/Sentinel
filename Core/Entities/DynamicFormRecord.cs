@@ -12,6 +12,12 @@ namespace Core.Entities
         [ForeignKey("FormId")]
         public virtual DynamicForm Form { get; set; } = null!;
 
+        [Required]
+        public Guid SubmissionId { get; set; }
+
+        [ForeignKey("SubmissionId")]
+        public virtual DynamicFormSubmission Submission { get; set; } = null!;
+
         // 75 Generic Fields for dynamic column mapping
         public string? Field1 { get; set; }
         public string? Field2 { get; set; }

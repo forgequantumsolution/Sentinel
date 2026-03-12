@@ -34,6 +34,7 @@ namespace WebAPI
             services.AddScoped<IGraphDataDefinitionRepository, GraphDataDefinitionRepository>();
             services.AddScoped<IDynamicGroupingRuleRepository, DynamicGroupingRuleRepository>();
             services.AddScoped<IDynamicPermissionRuleRepository, DynamicPermissionRuleRepository>();
+            services.AddScoped<IBulkUploadJobRepository, BulkUploadJobRepository>();
 
             // Security
             services.AddScoped<IPasswordHasher, PasswordHasher>();
@@ -41,6 +42,9 @@ namespace WebAPI
 
             // Multi-tenancy
             services.AddScoped<ITenantContext, Infrastructure.Services.TenantContext>();
+
+            // Background services
+            services.AddHostedService<BulkUploadBackgroundService>();
 
             return services;
         }
@@ -54,6 +58,7 @@ namespace WebAPI
             services.AddScoped<IGraphService, GraphService>();
             services.AddScoped<IDynamicGroupingRuleService, DynamicGroupingRuleService>();
             services.AddScoped<IDynamicPermissionRuleService, DynamicPermissionRuleService>();
+            services.AddScoped<IBulkUploadService, BulkUploadService>();
 
             return services;
         }

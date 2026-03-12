@@ -16,5 +16,7 @@ namespace Core.Entities
         /// </summary>
         [Required]
         public string DataJson { get; set; }
+
+        public virtual DynamicFormRecord? Record { get; set; }
     }
 }

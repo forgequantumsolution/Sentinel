@@ -31,6 +31,7 @@ namespace Infrastructure.Persistence
         public DbSet<FeaturePermissionAssignment> FeaturePermissionAssignments { get; set; }
         public DbSet<GraphConfigEntity> GraphConfigs { get; set; }
         public DbSet<GraphDataDefinitionEntity> GraphDataDefinitions { get; set; }
+        public DbSet<BulkUploadJob> BulkUploadJobs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -149,6 +150,17 @@ namespace Infrastructure.Persistence
                     v => string.Join(',', v),
                     v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
                 );
+
+            // Configure DynamicFormRecord to have 75 generic fields
+            modelBuilder.Entity<DynamicFormRecord>(entity =>
+            {
+                entity.Property(r=>r.SubmissionId).IsRequired();
+
+                entity.HasOne(r => r.Submission)
+                      .WithOne(r => r.Record)
+                      .HasForeignKey<DynamicFormRecord>(r => r.SubmissionId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
 
             // ── RBAC configurations ──
 
