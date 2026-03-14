@@ -1,4 +1,6 @@
+using System.Reflection;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -17,6 +19,25 @@ namespace Infrastructure.Services
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<BulkUploadBackgroundService> _logger;
         private readonly TimeSpan _pollingInterval = TimeSpan.FromSeconds(15);
+
+        /// <summary>
+        /// Cached count of available Field columns in DynamicFormRecord entity.
+        /// Computed once using reflection and cached for performance.
+        /// </summary>
+        private static readonly Lazy<int> _maxColumnCount = new Lazy<int>(() =>
+        {
+            // Use reflection to count properties matching the pattern "Field{N}" in DynamicFormRecord
+            var fieldPattern = new Regex(@"^Field\d+$", RegexOptions.Compiled);
+            return typeof(DynamicFormRecord)
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Count(p => fieldPattern.IsMatch(p.Name));
+        });
+
+        /// <summary>
+        /// Gets the maximum number of columns available for field definitions.
+        /// This is dynamically computed from DynamicFormRecord entity using reflection.
+        /// </summary>
+        public static int MaxColumnCount => _maxColumnCount.Value;
 
         public BulkUploadBackgroundService(
             IServiceProvider serviceProvider,
@@ -103,6 +124,15 @@ namespace Infrastructure.Services
 
                     try
                     {
+                        // Validate field count doesn't exceed column count (dynamically determined via reflection)
+                        var fieldDefinitionCount = formDto.FieldDefinitions?.Count ?? 0;
+                        if (fieldDefinitionCount > MaxColumnCount)
+                        {
+                            throw new InvalidOperationException(
+                                $"Field definition count ({fieldDefinitionCount}) exceeds maximum allowed columns ({MaxColumnCount}). " +
+                                $"Please reduce the number of field definitions to {MaxColumnCount} or fewer.");
+                        }
+
                         var form = new DynamicForm
                         {
                             Name = formDto.Name,
@@ -112,9 +142,12 @@ namespace Infrastructure.Services
                             CreatedAt = DateTime.UtcNow,
                             CreatedById = job.CreatedById,
                             OrganizationId = job.OrganizationId,
-                            FieldDefinitions = formDto.FieldDefinitions?.Select(fd => new DynamicFormFieldDefinition
+                            FieldDefinitions = formDto.FieldDefinitions?.Select((fd, index) => new DynamicFormFieldDefinition
                             {
-                                ColumnName = fd.ColumnName,
+                                // Auto-map to DynamicFormRecord columns (Field1, Field2, etc.) based on index
+                                ColumnName = string.IsNullOrWhiteSpace(fd.ColumnName) 
+                                    ? $"Field{index + 1}" 
+                                    : fd.ColumnName,
                                 FieldName = fd.FieldName,
                                 FieldType = fd.FieldType,
                                 IsRequired = fd.IsRequired,

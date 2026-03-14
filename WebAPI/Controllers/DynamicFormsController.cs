@@ -88,6 +88,9 @@ namespace Controllers
                 userId = parsedId;
             }
 
+            if (dto.FieldDefinitions == null || dto.FieldDefinitions.Count == 0)
+                return BadRequest("FieldDefinitions are required and cannot be empty.");
+
             var form = new DynamicForm
             {
                 Name = dto.Name,
@@ -96,14 +99,14 @@ namespace Controllers
                 IsActive = dto.IsActive,
                 CreatedAt = DateTime.UtcNow,
                 CreatedById = userId,
-                FieldDefinitions = dto.FieldDefinitions?.Select(fd => new DynamicFormFieldDefinition
+                FieldDefinitions = dto.FieldDefinitions.Select(fd => new DynamicFormFieldDefinition
                 {
                     ColumnName = fd.ColumnName,
                     FieldName = fd.FieldName,
                     FieldType = fd.FieldType,
                     IsRequired = fd.IsRequired,
                     ValidationRules = fd.ValidationRules
-                }).ToList() ?? new List<DynamicFormFieldDefinition>()
+                }).ToList()
             };
 
             await _formRepository.AddAsync(form);
