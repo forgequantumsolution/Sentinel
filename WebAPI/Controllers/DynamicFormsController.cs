@@ -6,6 +6,7 @@ using Application.Interfaces.Persistence;
 using Application.Interfaces.Services;
 using Core.Entities;
 using System.Security.Claims;
+using Application.Common;
 using Application.Common.Pagination;
 
 namespace Controllers
@@ -88,40 +89,40 @@ namespace Controllers
                 userId = parsedId;
             }
 
-            if (dto.FieldDefinitions == null || dto.FieldDefinitions.Count == 0)
-                return BadRequest("FieldDefinitions are required and cannot be empty.");
-
-            var form = new DynamicForm
+            try
             {
-                Name = dto.Name,
-                Description = dto.Description,
-                ConfigJson = dto.ConfigJson,
-                IsActive = dto.IsActive,
-                CreatedAt = DateTime.UtcNow,
-                CreatedById = userId,
-                FieldDefinitions = dto.FieldDefinitions.Select(fd => new DynamicFormFieldDefinition
+                var fieldDefinitions = DynamicFormFieldHelper.ValidateAndMapFieldDefinitions(
+                    dto.FieldDefinitions);
+
+                var form = new DynamicForm
                 {
-                    ColumnName = fd.ColumnName,
-                    FieldName = fd.FieldName,
-                    FieldType = fd.FieldType,
-                    IsRequired = fd.IsRequired,
-                    ValidationRules = fd.ValidationRules
-                }).ToList()
-            };
+                    Name = dto.Name,
+                    Description = dto.Description,
+                    ConfigJson = dto.ConfigJson,
+                    IsActive = dto.IsActive,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedById = userId,
+                    FieldDefinitions = fieldDefinitions
+                };
 
-            await _formRepository.AddAsync(form);
+                await _formRepository.AddAsync(form);
 
-            var resultDto = new DynamicFormDto
+                var resultDto = new DynamicFormDto
+                {
+                    Id = form.Id,
+                    Name = form.Name,
+                    Description = form.Description,
+                    ConfigJson = form.ConfigJson,
+                    IsActive = form.IsActive,
+                    CreatedAt = form.CreatedAt
+                };
+
+                return CreatedAtAction(nameof(GetById), new { id = form.Id }, resultDto);
+            }
+            catch (ArgumentException ex)
             {
-                Id = form.Id,
-                Name = form.Name,
-                Description = form.Description,
-                ConfigJson = form.ConfigJson,
-                IsActive = form.IsActive,
-                CreatedAt = form.CreatedAt
-            };
-
-            return CreatedAtAction(nameof(GetById), new { id = form.Id }, resultDto);
+                return BadRequest(ex.Message);
+            }
         }
 
         /// <summary>

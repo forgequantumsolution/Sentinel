@@ -15,7 +15,6 @@ namespace Application.DTOs
 
     public class CreateDynamicFormFieldDefinitionDto
     {
-        public string ColumnName { get; set; }
         public string FieldName { get; set; }
         public string FieldType { get; set; }
         public bool IsRequired { get; set; }
