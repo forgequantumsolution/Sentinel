@@ -1,0 +1,219 @@
+using System.Text.RegularExpressions;
+using Application.DTOs;
+using Application.Interfaces.Persistence;
+using Application.Interfaces.Services;
+using Core.Entities;
+using Core.Enums;
+
+namespace Application.Services
+{
+    public class AppFolderService : IAppFolderService
+    {
+        private readonly IActionObjectRepository _repository;
+
+        public AppFolderService(IActionObjectRepository repository)
+        {
+            _repository = repository;
+        }
+
+        public async Task<AppFolderDto?> GetByIdAsync(Guid id)
+        {
+            var obj = await _repository.GetByIdAsync(id);
+            if (obj == null || obj.ObjectType != ObjectType.Folder) return null;
+            return MapToDto(obj);
+        }
+
+        public async Task<List<AppFolderDto>> GetAllTreeAsync()
+        {
+            var allFolders = await _repository.GetByTypeAsync(ObjectType.Folder);
+            var roots = allFolders.Where(f => f.ParentObjectId == null).ToList();
+            return roots.Select(f => MapToTreeDto(f, allFolders)).ToList();
+        }
+
+        public async Task<AppFolderDto?> GetByRouteAsync(string route)
+        {
+            var obj = await _repository.GetByRouteAsync(route);
+            if (obj == null || obj.ObjectType != ObjectType.Folder) return null;
+            return MapToDto(obj);
+        }
+
+        public async Task<AppFolderDto> CreateAsync(CreateAppFolderDto dto, Guid? userId)
+        {
+            string route;
+            if (!string.IsNullOrWhiteSpace(dto.Route))
+            {
+                route = NormalizeRoute(dto.Route);
+                if (await _repository.RouteExistsAsync(route))
+                    throw new ArgumentException($"Route '{route}' already exists.");
+            }
+            else
+            {
+                route = await GenerateDefaultRouteAsync(dto.Name, dto.ParentObjectId);
+            }
+
+            var folder = new ActionObject
+            {
+                Name = dto.Name,
+                Code = dto.Code,
+                ObjectType = ObjectType.Folder,
+                Route = route,
+                Description = dto.Description,
+                Icon = dto.Icon,
+                SortOrder = dto.SortOrder,
+                ParentObjectId = dto.ParentObjectId,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _repository.AddAsync(folder);
+            return MapToDto(folder);
+        }
+
+        public async Task<AppFolderDto?> UpdateAsync(Guid id, UpdateAppFolderDto dto)
+        {
+            var folder = await _repository.GetByIdAsync(id);
+            if (folder == null || folder.ObjectType != ObjectType.Folder) return null;
+
+            if (!string.IsNullOrWhiteSpace(dto.Route))
+            {
+                var newRoute = NormalizeRoute(dto.Route);
+                if (newRoute != folder.Route && await _repository.RouteExistsAsync(newRoute, id))
+                    throw new ArgumentException($"Route '{newRoute}' already exists.");
+                folder.Route = newRoute;
+            }
+
+            folder.Name = dto.Name;
+            folder.Code = dto.Code;
+            folder.Description = dto.Description;
+            folder.Icon = dto.Icon;
+            folder.SortOrder = dto.SortOrder;
+            folder.UpdatedAt = DateTime.UtcNow;
+
+            await _repository.UpdateAsync(folder);
+            return MapToDto(folder);
+        }
+
+        public async Task<bool> DeleteAsync(Guid id)
+        {
+            var folder = await _repository.GetByIdAsync(id);
+            if (folder == null || folder.ObjectType != ObjectType.Folder) return false;
+
+            await _repository.DeleteAsync(id);
+            return true;
+        }
+
+        /// <summary>
+        /// Move any ActionObject under a folder by setting its ParentObjectId.
+        /// </summary>
+        public async Task<bool> MoveToFolderAsync(Guid folderId, Guid actionObjectId)
+        {
+            var folder = await _repository.GetByIdAsync(folderId);
+            if (folder == null || folder.ObjectType != ObjectType.Folder) return false;
+
+            var child = await _repository.GetByIdAsync(actionObjectId);
+            if (child == null) return false;
+
+            child.ParentObjectId = folderId;
+            child.UpdatedAt = DateTime.UtcNow;
+            await _repository.UpdateAsync(child);
+            return true;
+        }
+
+        /// <summary>
+        /// Remove an ActionObject from its parent folder (set ParentObjectId = null).
+        /// </summary>
+        public async Task<bool> RemoveFromFolderAsync(Guid actionObjectId)
+        {
+            var child = await _repository.GetByIdAsync(actionObjectId);
+            if (child == null || child.ParentObjectId == null) return false;
+
+            child.ParentObjectId = null;
+            child.UpdatedAt = DateTime.UtcNow;
+            await _repository.UpdateAsync(child);
+            return true;
+        }
+
+        // ── Route generation ──
+
+        /// <summary>
+        /// Generates a default route that doesn't conflict with existing routes.
+        /// Root: /{folderName-slug}
+        /// Child: {parentRoute}/{folderName-slug}
+        /// Appends -2, -3, etc. on conflict.
+        /// </summary>
+        private async Task<string> GenerateDefaultRouteAsync(string name, Guid? parentObjectId)
+        {
+            var slug = Slugify(name);
+            string baseRoute;
+
+            if (parentObjectId == null)
+            {
+                baseRoute = $"/{slug}";
+            }
+            else
+            {
+                var parent = await _repository.GetByIdAsync(parentObjectId.Value);
+                if (parent == null)
+                    throw new ArgumentException("Parent object not found.");
+
+                var parentRoute = parent.Route ?? $"/{Slugify(parent.Name)}";
+                baseRoute = $"{parentRoute}/{slug}";
+            }
+
+            var route = baseRoute;
+            int suffix = 2;
+            while (await _repository.RouteExistsAsync(route))
+            {
+                route = $"{baseRoute}-{suffix}";
+                suffix++;
+            }
+
+            return route;
+        }
+
+        private static string Slugify(string name)
+        {
+            var slug = name.Trim().ToLowerInvariant();
+            slug = Regex.Replace(slug, @"[^a-z0-9\s-]", "");
+            slug = Regex.Replace(slug, @"\s+", "-");
+            slug = Regex.Replace(slug, @"-+", "-");
+            return slug.Trim('-');
+        }
+
+        private static string NormalizeRoute(string route)
+        {
+            route = route.Trim();
+            if (!route.StartsWith('/'))
+                route = "/" + route;
+            route = Regex.Replace(route, @"/+", "/");
+            return route.TrimEnd('/');
+        }
+
+        // ── Mapping ──
+
+        private static AppFolderDto MapToDto(ActionObject obj)
+        {
+            return new AppFolderDto
+            {
+                Id = obj.Id,
+                Name = obj.Name,
+                Code = obj.Code,
+                Route = obj.Route ?? string.Empty,
+                Description = obj.Description,
+                Icon = obj.Icon,
+                SortOrder = obj.SortOrder,
+                ParentObjectId = obj.ParentObjectId,
+                ParentName = obj.ParentObject?.Name,
+                IsActive = obj.IsActive,
+                CreatedAt = obj.CreatedAt
+            };
+        }
+
+        private static AppFolderDto MapToTreeDto(ActionObject obj, List<ActionObject> allFolders)
+        {
+            var dto = MapToDto(obj);
+            var children = allFolders.Where(f => f.ParentObjectId == obj.Id).ToList();
+            dto.Children = children.Select(c => MapToTreeDto(c, allFolders)).ToList();
+            return dto;
+        }
+    }
+}

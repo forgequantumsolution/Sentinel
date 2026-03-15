@@ -42,6 +42,11 @@ namespace Core.Enums
         Report,
         
         /// <summary>
+        /// Folder for organizing and grouping other objects
+        /// </summary>
+        Folder,
+
+        /// <summary>
         /// Custom object type
         /// </summary>
         Custom

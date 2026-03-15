@@ -5,8 +5,9 @@ using Core.Enums;
 namespace Core.Entities
 {
     /// <summary>
-    /// Represents any object on which permissions can be applied.
-    /// This can be a feature, URL, file, API endpoint, UI component, or any other resource.
+    /// Represents any object in the application — features, folders, URLs, files, UI components, etc.
+    /// Uses ObjectType for type discrimination and ParentObjectId for hierarchy.
+    /// Folders are simply ActionObjects with ObjectType = Folder.
     /// </summary>
     public class ActionObject : BaseEntity
     {
@@ -15,29 +16,37 @@ namespace Core.Entities
         public string Name { get; set; } = string.Empty;
 
         [MaxLength(100)]
-        public string? Code { get; set; } // e.g., "DYNAMIC_FORMS", "/api/users", "report.pdf"
+        public string? Code { get; set; }
 
         [MaxLength(500)]
         public string? Description { get; set; }
 
-        /// <summary>
-        /// Type of the action object
-        /// </summary>
         [Required]
         public ObjectType ObjectType { get; set; } = ObjectType.Feature;
 
         /// <summary>
-        /// Optional parent object for hierarchical structures.
-        /// e.g., "Analytics Dashboard" > "Chart Builder" or "/api" > "/api/users"
+        /// Route path for navigation. Auto-calculated for Folders if not provided.
+        /// Root: /{name-slug}, Child: {parentRoute}/{name-slug}
         /// </summary>
+        [MaxLength(1000)]
+        public string? Route { get; set; }
+
+        [MaxLength(100)]
+        public string? Icon { get; set; }
+
+        public int SortOrder { get; set; } = 0;
+
+        // ── Hierarchy ──
+
         public Guid? ParentObjectId { get; set; }
-        
+
         [ForeignKey("ParentObjectId")]
         public virtual ActionObject? ParentObject { get; set; }
-        
+
         public virtual ICollection<ActionObject> ChildObjects { get; set; } = new List<ActionObject>();
 
-        // Navigation
+        // ── Navigation ──
+
         public virtual ICollection<ActionObjectPermissionAssignment> Assignments { get; set; } = new List<ActionObjectPermissionAssignment>();
     }
 }

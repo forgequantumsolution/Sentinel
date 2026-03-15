@@ -1,5 +1,8 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Core.Entities;
+using Core.Models;
 using Application.Interfaces;
 
 namespace Infrastructure.Persistence
@@ -33,6 +36,7 @@ namespace Infrastructure.Persistence
         public DbSet<GraphConfigEntity> GraphConfigs { get; set; }
         public DbSet<GraphDataDefinitionEntity> GraphDataDefinitions { get; set; }
         public DbSet<BulkUploadJob> BulkUploadJobs { get; set; }
+        public DbSet<ActionObject> ActionObjects { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -171,6 +175,104 @@ namespace Infrastructure.Persistence
             {
                 entity.HasIndex(e => new { e.SubmissionId, e.FieldDefinitionId }).IsUnique();
                 entity.HasIndex(e => new { e.FormId, e.FieldDefinitionId });
+            });
+
+            // Configure ActionObject
+            modelBuilder.Entity<ActionObject>(entity =>
+            {
+                entity.HasIndex(ao => ao.Route).IsUnique().HasFilter("\"Route\" IS NOT NULL");
+
+                entity.HasOne(ao => ao.ParentObject)
+                      .WithMany(ao => ao.ChildObjects)
+                      .HasForeignKey(ao => ao.ParentObjectId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // Configure GraphConfigEntity — serialize JSON as string, DB-agnostic
+            var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            modelBuilder.Entity<GraphConfigEntity>(entity =>
+            {
+                entity.Property(e => e.View)
+                    .HasColumnName("View")
+                    .HasColumnType("jsonb")
+                    .HasConversion(
+                        v => JsonSerializer.Serialize(v, jsonOptions),
+                        v => JsonSerializer.Deserialize<GraphViewConfig>(v, jsonOptions) ?? new(),
+                        new ValueComparer<GraphViewConfig>(
+                            (a, b) => JsonSerializer.Serialize(a, jsonOptions) == JsonSerializer.Serialize(b, jsonOptions),
+                            v => JsonSerializer.Serialize(v, jsonOptions).GetHashCode(),
+                            v => JsonSerializer.Deserialize<GraphViewConfig>(JsonSerializer.Serialize(v, jsonOptions), jsonOptions) ?? new()));
+
+                entity.Property(e => e.Data)
+                    .HasColumnName("Data")
+                    .HasColumnType("jsonb")
+                    .HasConversion(
+                        v => JsonSerializer.Serialize(v, jsonOptions),
+                        v => JsonSerializer.Deserialize<GraphDataConfig>(v, jsonOptions) ?? new(),
+                        new ValueComparer<GraphDataConfig>(
+                            (a, b) => JsonSerializer.Serialize(a, jsonOptions) == JsonSerializer.Serialize(b, jsonOptions),
+                            v => JsonSerializer.Serialize(v, jsonOptions).GetHashCode(),
+                            v => JsonSerializer.Deserialize<GraphDataConfig>(JsonSerializer.Serialize(v, jsonOptions), jsonOptions) ?? new()));
+
+                entity.Property(e => e.Meta)
+                    .HasColumnName("Meta")
+                    .HasColumnType("jsonb")
+                    .HasConversion(
+                        v => v == null ? null : JsonSerializer.Serialize(v, jsonOptions),
+                        v => v == null ? null : JsonSerializer.Deserialize<Dictionary<string, object>>(v, jsonOptions),
+                        new ValueComparer<Dictionary<string, object>?>(
+                            (a, b) => JsonSerializer.Serialize(a, jsonOptions) == JsonSerializer.Serialize(b, jsonOptions),
+                            v => v == null ? 0 : JsonSerializer.Serialize(v, jsonOptions).GetHashCode(),
+                            v => v == null ? null : JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(v, jsonOptions), jsonOptions)));
+            });
+
+            // Configure GraphDataDefinitionEntity — serialize JSON as string
+            modelBuilder.Entity<GraphDataDefinitionEntity>(entity =>
+            {
+                entity.Property(e => e.Source)
+                    .HasColumnName("Source")
+                    .HasColumnType("jsonb")
+                    .HasConversion(
+                        v => JsonSerializer.Serialize(v, jsonOptions),
+                        v => JsonSerializer.Deserialize<DataSourceDefinition>(v, jsonOptions) ?? new(),
+                        new ValueComparer<DataSourceDefinition>(
+                            (a, b) => JsonSerializer.Serialize(a, jsonOptions) == JsonSerializer.Serialize(b, jsonOptions),
+                            v => JsonSerializer.Serialize(v, jsonOptions).GetHashCode(),
+                            v => JsonSerializer.Deserialize<DataSourceDefinition>(JsonSerializer.Serialize(v, jsonOptions), jsonOptions) ?? new()));
+
+                entity.Property(e => e.SeriesCalculations)
+                    .HasColumnName("SeriesCalculations")
+                    .HasColumnType("jsonb")
+                    .HasConversion(
+                        v => JsonSerializer.Serialize(v, jsonOptions),
+                        v => JsonSerializer.Deserialize<List<SeriesCalculation>>(v, jsonOptions) ?? new(),
+                        new ValueComparer<List<SeriesCalculation>>(
+                            (a, b) => JsonSerializer.Serialize(a, jsonOptions) == JsonSerializer.Serialize(b, jsonOptions),
+                            v => JsonSerializer.Serialize(v, jsonOptions).GetHashCode(),
+                            v => JsonSerializer.Deserialize<List<SeriesCalculation>>(JsonSerializer.Serialize(v, jsonOptions), jsonOptions) ?? new()));
+
+                entity.Property(e => e.GlobalFilter)
+                    .HasColumnName("GlobalFilter")
+                    .HasColumnType("jsonb")
+                    .HasConversion(
+                        v => v == null ? null : JsonSerializer.Serialize(v, jsonOptions),
+                        v => v == null ? null : JsonSerializer.Deserialize<FilterGroup>(v, jsonOptions),
+                        new ValueComparer<FilterGroup?>(
+                            (a, b) => JsonSerializer.Serialize(a, jsonOptions) == JsonSerializer.Serialize(b, jsonOptions),
+                            v => v == null ? 0 : JsonSerializer.Serialize(v, jsonOptions).GetHashCode(),
+                            v => v == null ? null : JsonSerializer.Deserialize<FilterGroup>(JsonSerializer.Serialize(v, jsonOptions), jsonOptions)));
+
+                entity.Property(e => e.SortRules)
+                    .HasColumnName("SortRules")
+                    .HasColumnType("jsonb")
+                    .HasConversion(
+                        v => v == null ? null : JsonSerializer.Serialize(v, jsonOptions),
+                        v => v == null ? null : JsonSerializer.Deserialize<List<SortRule>>(v, jsonOptions),
+                        new ValueComparer<List<SortRule>?>(
+                            (a, b) => JsonSerializer.Serialize(a, jsonOptions) == JsonSerializer.Serialize(b, jsonOptions),
+                            v => v == null ? 0 : JsonSerializer.Serialize(v, jsonOptions).GetHashCode(),
+                            v => v == null ? null : JsonSerializer.Deserialize<List<SortRule>>(JsonSerializer.Serialize(v, jsonOptions), jsonOptions)));
             });
 
             // ── RBAC configurations ──

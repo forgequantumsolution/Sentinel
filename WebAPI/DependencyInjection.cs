@@ -37,6 +37,7 @@ namespace WebAPI
             services.AddScoped<IDynamicGroupingRuleRepository, DynamicGroupingRuleRepository>();
             services.AddScoped<IDynamicPermissionRuleRepository, DynamicPermissionRuleRepository>();
             services.AddScoped<IBulkUploadJobRepository, BulkUploadJobRepository>();
+            services.AddScoped<IActionObjectRepository, ActionObjectRepository>();
 
             // Security
             services.AddScoped<IPasswordHasher, PasswordHasher>();
@@ -67,6 +68,7 @@ namespace WebAPI
             services.AddScoped<IDynamicGroupingRuleService, DynamicGroupingRuleService>();
             services.AddScoped<IDynamicPermissionRuleService, DynamicPermissionRuleService>();
             services.AddScoped<IBulkUploadService, BulkUploadService>();
+            services.AddScoped<IAppFolderService, AppFolderService>();
 
             return services;
         }

@@ -1,0 +1,46 @@
+using Core.Enums;
+
+namespace Application.DTOs
+{
+    public class AppFolderDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Code { get; set; }
+        public string Route { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string? Icon { get; set; }
+        public int SortOrder { get; set; }
+        public Guid? ParentObjectId { get; set; }
+        public string? ParentName { get; set; }
+        public bool IsActive { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public List<AppFolderDto> Children { get; set; } = new();
+    }
+
+    public class CreateAppFolderDto
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? Code { get; set; }
+        public string? Route { get; set; } // null = auto-calculate default
+        public string? Description { get; set; }
+        public string? Icon { get; set; }
+        public int SortOrder { get; set; } = 0;
+        public Guid? ParentObjectId { get; set; }
+    }
+
+    public class UpdateAppFolderDto
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? Code { get; set; }
+        public string? Route { get; set; } // null = keep existing
+        public string? Description { get; set; }
+        public string? Icon { get; set; }
+        public int SortOrder { get; set; }
+    }
+
+    public class MoveToFolderDto
+    {
+        public Guid ActionObjectId { get; set; }
+    }
+}
