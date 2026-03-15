@@ -7,10 +7,12 @@ using Infrastructure.Persistence;
 using Infrastructure.Persistence.Repositories;
 using Infrastructure.Security;
 using Infrastructure.Services;
+using Infrastructure.FormQuery;
 using Application.Services;
 using Application.Interfaces;
 using Application.Interfaces.Persistence;
 using Application.Interfaces.Services;
+using Application.FormQuery;
 
 namespace WebAPI
 {
@@ -45,6 +47,12 @@ namespace WebAPI
 
             // Background services
             services.AddHostedService<BulkUploadBackgroundService>();
+
+            // Caching
+            services.AddMemoryCache();
+
+            // Form Query Engine
+            services.AddScoped<IFormQueryEngine, FormQueryEngine>();
 
             return services;
         }
