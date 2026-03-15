@@ -11,10 +11,14 @@ namespace Application.Services
     public class AppFolderService : IAppFolderService
     {
         private readonly IActionObjectRepository _repository;
+        private readonly IGraphConfigRepository _graphConfigRepository;
 
-        public AppFolderService(IActionObjectRepository repository)
+        public AppFolderService(
+            IActionObjectRepository repository,
+            IGraphConfigRepository graphConfigRepository)
         {
             _repository = repository;
+            _graphConfigRepository = graphConfigRepository;
         }
 
         public async Task<AppFolderDto?> GetByIdAsync(Guid id)
@@ -185,14 +189,60 @@ namespace Application.Services
                 throw new ArgumentException("Folder not found.");
 
             var pagedResult = await _repository.GetChildrenPagedAsync(folderId, pageRequest);
+            var children = pagedResult.Items.ToList();
+
+            // Batch-load linked data by ObjectType
+            var dtos = children.Select(MapToActionObjectDto).ToList();
+            await PopulateLinkedDataAsync(children, dtos);
 
             return new PagedResult<ActionObjectDto>
             {
-                Items = pagedResult.Items.Select(MapToActionObjectDto),
+                Items = dtos,
                 TotalCount = pagedResult.TotalCount,
                 Page = pagedResult.Page,
                 PageSize = pagedResult.PageSize
             };
+        }
+
+        /// <summary>
+        /// Batch-loads linked entity data for each ActionObject based on its ObjectType.
+        /// </summary>
+        private async Task PopulateLinkedDataAsync(List<ActionObject> actionObjects, List<ActionObjectDto> dtos)
+        {
+            // Graph: load GraphConfigs by ActionObjectIds
+            var graphIds = actionObjects
+                .Where(ao => ao.ObjectType == ObjectType.Graph)
+                .Select(ao => ao.Id)
+                .ToList();
+
+            if (graphIds.Count > 0)
+            {
+                var graphConfigs = await _graphConfigRepository.GetByActionObjectIdsAsync(graphIds);
+                var graphLookup = graphConfigs.ToDictionary(g => g.ActionObjectId!.Value);
+
+                foreach (var dto in dtos.Where(d => d.ObjectType == nameof(ObjectType.Graph)))
+                {
+                    if (graphLookup.TryGetValue(dto.Id, out var config))
+                    {
+                        dto.Data = new GraphConfigDto
+                        {
+                            Id = config.Id,
+                            Name = config.Name,
+                            Type = (int)config.Type,
+                            View = config.View,
+                            Data = config.Data,
+                            Meta = config.Meta,
+                            IsActive = config.IsActive,
+                            CreatedAt = config.CreatedAt,
+                            UpdatedAt = config.UpdatedAt,
+                            CreatedById = config.CreatedById,
+                            OrganizationId = config.OrganizationId
+                        };
+                    }
+                }
+            }
+
+            // Add more ObjectType handlers here as needed (Form, Report, etc.)
         }
 
         // ── Route generation ──

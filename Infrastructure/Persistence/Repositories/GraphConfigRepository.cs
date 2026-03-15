@@ -74,6 +74,13 @@ namespace Infrastructure.Persistence.Repositories
             };
         }
 
+        public async Task<List<GraphConfigEntity>> GetByActionObjectIdsAsync(List<Guid> actionObjectIds)
+        {
+            return await _context.GraphConfigs
+                .Where(g => g.ActionObjectId != null && actionObjectIds.Contains(g.ActionObjectId.Value) && !g.IsDeleted)
+                .ToListAsync();
+        }
+
         public async Task AddAsync(GraphConfigEntity graphConfig)
         {
             await _context.GraphConfigs.AddAsync(graphConfig);

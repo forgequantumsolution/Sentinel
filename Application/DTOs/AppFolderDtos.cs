@@ -69,5 +69,11 @@ namespace Application.DTOs
         public string? ParentName { get; set; }
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
+
+        /// <summary>
+        /// The actual linked entity data based on ObjectType.
+        /// e.g., GraphConfigDto for Graph, null for Folder, etc.
+        /// </summary>
+        public object? Data { get; set; }
     }
 }

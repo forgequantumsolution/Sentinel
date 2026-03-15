@@ -117,7 +117,7 @@ namespace Infrastructure.Persistence.Repositories
 
         public async Task UpdateAsync(ActionObject actionObject)
         {
-            _context.ActionObjects.Update(actionObject);
+            _context.Entry(actionObject).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
             await _context.SaveChangesAsync();
         }
 
