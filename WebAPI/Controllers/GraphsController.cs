@@ -23,24 +23,10 @@ namespace Controllers
         public async Task<IActionResult> GetAllGraphConfigs([FromQuery] PageRequest pageRequest)
         {
             var pagedResult = await _graphService.GetAllGraphConfigsAsync(pageRequest);
-            var dtos = pagedResult.Items.Select(g => new GraphConfigDto
-            {
-                Id = g.Id,
-                Name = g.Name,
-                Type = (int)g.Type,
-                View = g.View,
-                Data = g.Data,
-                Meta = g.Meta,
-                IsActive = g.IsActive,
-                CreatedAt = g.CreatedAt,
-                UpdatedAt = g.UpdatedAt,
-                CreatedById = g.CreatedById,
-                OrganizationId = g.OrganizationId
-            });
 
             return Ok(new PagedResult<GraphConfigDto>
             {
-                Items = dtos,
+                Items = pagedResult.Items.Select(MapToDto),
                 TotalCount = pagedResult.TotalCount,
                 Page = pagedResult.Page,
                 PageSize = pagedResult.PageSize
@@ -52,22 +38,7 @@ namespace Controllers
         {
             var graphConfig = await _graphService.GetGraphConfigByIdAsync(id);
             if (graphConfig == null) return NotFound();
-
-            var dto = new GraphConfigDto
-            {
-                Id = graphConfig.Id,
-                Name = graphConfig.Name,
-                Type = (int)graphConfig.Type,
-                View = graphConfig.View,
-                Data = graphConfig.Data,
-                Meta = graphConfig.Meta,
-                IsActive = graphConfig.IsActive,
-                CreatedAt = graphConfig.CreatedAt,
-                UpdatedAt = graphConfig.UpdatedAt,
-                CreatedById = graphConfig.CreatedById,
-                OrganizationId = graphConfig.OrganizationId
-            };
-            return Ok(dto);
+            return Ok(MapToDto(graphConfig));
         }
 
         [HttpGet("configs/name/{name}")]
@@ -75,46 +46,17 @@ namespace Controllers
         {
             var graphConfig = await _graphService.GetGraphConfigByNameAsync(name);
             if (graphConfig == null) return NotFound();
-
-            var dto = new GraphConfigDto
-            {
-                Id = graphConfig.Id,
-                Name = graphConfig.Name,
-                Type = (int)graphConfig.Type,
-                View = graphConfig.View,
-                Data = graphConfig.Data,
-                Meta = graphConfig.Meta,
-                IsActive = graphConfig.IsActive,
-                CreatedAt = graphConfig.CreatedAt,
-                UpdatedAt = graphConfig.UpdatedAt,
-                CreatedById = graphConfig.CreatedById,
-                OrganizationId = graphConfig.OrganizationId
-            };
-            return Ok(dto);
+            return Ok(MapToDto(graphConfig));
         }
 
         [HttpGet("configs/type/{type}")]
         public async Task<IActionResult> GetGraphConfigsByType(int type, [FromQuery] PageRequest pageRequest)
         {
             var pagedResult = await _graphService.GetGraphConfigsByTypeAsync((Core.Enums.GraphType)type, pageRequest);
-            var dtos = pagedResult.Items.Select(g => new GraphConfigDto
-            {
-                Id = g.Id,
-                Name = g.Name,
-                Type = (int)g.Type,
-                View = g.View,
-                Data = g.Data,
-                Meta = g.Meta,
-                IsActive = g.IsActive,
-                CreatedAt = g.CreatedAt,
-                UpdatedAt = g.UpdatedAt,
-                CreatedById = g.CreatedById,
-                OrganizationId = g.OrganizationId
-            });
 
             return Ok(new PagedResult<GraphConfigDto>
             {
-                Items = dtos,
+                Items = pagedResult.Items.Select(MapToDto),
                 TotalCount = pagedResult.TotalCount,
                 Page = pagedResult.Page,
                 PageSize = pagedResult.PageSize
@@ -125,23 +67,7 @@ namespace Controllers
         public async Task<IActionResult> CreateGraphConfig([FromBody] CreateGraphConfigRequest request)
         {
             var graphConfig = await _graphService.CreateGraphConfigAsync(request);
-            
-            var dto = new GraphConfigDto
-            {
-                Id = graphConfig.Id,
-                Name = graphConfig.Name,
-                Type = (int)graphConfig.Type,
-                View = graphConfig.View,
-                Data = graphConfig.Data,
-                Meta = graphConfig.Meta,
-                IsActive = graphConfig.IsActive,
-                CreatedAt = graphConfig.CreatedAt,
-                UpdatedAt = graphConfig.UpdatedAt,
-                CreatedById = graphConfig.CreatedById,
-                OrganizationId = graphConfig.OrganizationId
-            };
-            
-            return CreatedAtAction(nameof(GetGraphConfigById), new { id = graphConfig.Id }, dto);
+            return CreatedAtAction(nameof(GetGraphConfigById), new { id = graphConfig.Id }, MapToDto(graphConfig));
         }
 
         [HttpPut("configs/{id}")]
@@ -164,25 +90,10 @@ namespace Controllers
         public async Task<IActionResult> GetAllGraphDataDefinitions([FromQuery] PageRequest pageRequest)
         {
             var pagedResult = await _graphService.GetAllGraphDataDefinitionsAsync(pageRequest);
-            var dtos = pagedResult.Items.Select(d => new GraphDataDefinitionDto
-            {
-                Id = d.Id,
-                GraphConfigId = d.GraphConfigId,
-                Source = d.Source,
-                SeriesCalculations = d.SeriesCalculations,
-                GlobalFilter = d.GlobalFilter,
-                SortRules = d.SortRules,
-                RowLimit = d.RowLimit,
-                IsActive = d.IsActive,
-                CreatedAt = d.CreatedAt,
-                UpdatedAt = d.UpdatedAt,
-                CreatedById = d.CreatedById,
-                OrganizationId = d.OrganizationId
-            });
 
             return Ok(new PagedResult<GraphDataDefinitionDto>
             {
-                Items = dtos,
+                Items = pagedResult.Items.Select(MapToDataDefDto),
                 TotalCount = pagedResult.TotalCount,
                 Page = pagedResult.Page,
                 PageSize = pagedResult.PageSize
@@ -194,23 +105,7 @@ namespace Controllers
         {
             var dataDefinition = await _graphService.GetGraphDataDefinitionByIdAsync(id);
             if (dataDefinition == null) return NotFound();
-
-            var dto = new GraphDataDefinitionDto
-            {
-                Id = dataDefinition.Id,
-                GraphConfigId = dataDefinition.GraphConfigId,
-                Source = dataDefinition.Source,
-                SeriesCalculations = dataDefinition.SeriesCalculations,
-                GlobalFilter = dataDefinition.GlobalFilter,
-                SortRules = dataDefinition.SortRules,
-                RowLimit = dataDefinition.RowLimit,
-                IsActive = dataDefinition.IsActive,
-                CreatedAt = dataDefinition.CreatedAt,
-                UpdatedAt = dataDefinition.UpdatedAt,
-                CreatedById = dataDefinition.CreatedById,
-                OrganizationId = dataDefinition.OrganizationId
-            };
-            return Ok(dto);
+            return Ok(MapToDataDefDto(dataDefinition));
         }
 
         [HttpGet("configs/{graphConfigId}/data-definition")]
@@ -218,47 +113,14 @@ namespace Controllers
         {
             var dataDefinition = await _graphService.GetGraphDataDefinitionByGraphConfigIdAsync(graphConfigId);
             if (dataDefinition == null) return NotFound();
-
-            var dto = new GraphDataDefinitionDto
-            {
-                Id = dataDefinition.Id,
-                GraphConfigId = dataDefinition.GraphConfigId,
-                Source = dataDefinition.Source,
-                SeriesCalculations = dataDefinition.SeriesCalculations,
-                GlobalFilter = dataDefinition.GlobalFilter,
-                SortRules = dataDefinition.SortRules,
-                RowLimit = dataDefinition.RowLimit,
-                IsActive = dataDefinition.IsActive,
-                CreatedAt = dataDefinition.CreatedAt,
-                UpdatedAt = dataDefinition.UpdatedAt,
-                CreatedById = dataDefinition.CreatedById,
-                OrganizationId = dataDefinition.OrganizationId
-            };
-            return Ok(dto);
+            return Ok(MapToDataDefDto(dataDefinition));
         }
 
         [HttpPost("data-definitions")]
         public async Task<IActionResult> CreateGraphDataDefinition([FromBody] CreateGraphDataDefinitionRequest request)
         {
             var dataDefinition = await _graphService.CreateGraphDataDefinitionAsync(request);
-            
-            var dto = new GraphDataDefinitionDto
-            {
-                Id = dataDefinition.Id,
-                GraphConfigId = dataDefinition.GraphConfigId,
-                Source = dataDefinition.Source,
-                SeriesCalculations = dataDefinition.SeriesCalculations,
-                GlobalFilter = dataDefinition.GlobalFilter,
-                SortRules = dataDefinition.SortRules,
-                RowLimit = dataDefinition.RowLimit,
-                IsActive = dataDefinition.IsActive,
-                CreatedAt = dataDefinition.CreatedAt,
-                UpdatedAt = dataDefinition.UpdatedAt,
-                CreatedById = dataDefinition.CreatedById,
-                OrganizationId = dataDefinition.OrganizationId
-            };
-            
-            return CreatedAtAction(nameof(GetGraphDataDefinitionById), new { id = dataDefinition.Id }, dto);
+            return CreatedAtAction(nameof(GetGraphDataDefinitionById), new { id = dataDefinition.Id }, MapToDataDefDto(dataDefinition));
         }
 
         [HttpPut("data-definitions/{id}")]
@@ -304,5 +166,38 @@ namespace Controllers
                 return NotFound();
             }
         }
+
+        // ── Mapping helpers ──
+
+        private static GraphConfigDto MapToDto(GraphConfigEntity g) => new()
+        {
+            Id = g.Id,
+            Name = g.Name,
+            Type = (int)g.Type,
+            View = g.View,
+            Data = g.Data,
+            Meta = g.Meta,
+            IsActive = g.IsActive,
+            CreatedAt = g.CreatedAt,
+            UpdatedAt = g.UpdatedAt,
+            CreatedById = g.CreatedById,
+            OrganizationId = g.OrganizationId
+        };
+
+        private static GraphDataDefinitionDto MapToDataDefDto(GraphDataDefinitionEntity d) => new()
+        {
+            Id = d.Id,
+            GraphConfigId = d.GraphConfigId,
+            Source = d.Source,
+            SeriesCalculations = d.SeriesCalculations,
+            GlobalFilter = d.GlobalFilter,
+            SortRules = d.SortRules,
+            RowLimit = d.RowLimit,
+            IsActive = d.IsActive,
+            CreatedAt = d.CreatedAt,
+            UpdatedAt = d.UpdatedAt,
+            CreatedById = d.CreatedById,
+            OrganizationId = d.OrganizationId
+        };
     }
 }

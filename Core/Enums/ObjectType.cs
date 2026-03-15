@@ -42,6 +42,11 @@ namespace Core.Enums
         Report,
         
         /// <summary>
+        /// Graph or chart visualization
+        /// </summary>
+        Graph,
+
+        /// <summary>
         /// Folder for organizing and grouping other objects
         /// </summary>
         Folder,

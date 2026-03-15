@@ -131,13 +131,25 @@ namespace Application.DTOs
         public Guid? OrganizationId { get; set; }
     }
 
-    public class CreateGraphConfigRequest : GraphConfigDto
+    public class CreateGraphConfigRequest
     {
-        // Additional properties for creation if needed
+        public string Name { get; set; } = string.Empty;
+        public int Type { get; set; }
+        public Core.Models.GraphViewConfig View { get; set; } = new();
+        public Core.Models.GraphDataConfig Data { get; set; } = new();
+        public Dictionary<string, object>? Meta { get; set; }
+        public bool IsActive { get; set; } = true;
+        public Guid? ParentFolderId { get; set; }
     }
 
-    public class CreateGraphDataDefinitionRequest : GraphDataDefinitionDto
+    public class CreateGraphDataDefinitionRequest
     {
-        // Additional properties for creation if needed
+        public Guid GraphConfigId { get; set; }
+        public Core.Models.DataSourceDefinition Source { get; set; } = new();
+        public List<Core.Models.SeriesCalculation> SeriesCalculations { get; set; } = new();
+        public Core.Models.FilterGroup? GlobalFilter { get; set; }
+        public List<Core.Models.SortRule>? SortRules { get; set; }
+        public int? RowLimit { get; set; }
+        public bool IsActive { get; set; } = true;
     }
 }

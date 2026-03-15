@@ -1,4 +1,5 @@
 using Core.Entities;
+using Core.Enums;
 using Core.Models;
 using Application.DTOs;
 using Application.Common.Pagination;
@@ -11,13 +12,16 @@ namespace Application.Services
     {
         private readonly IGraphConfigRepository _graphConfigRepository;
         private readonly IGraphDataDefinitionRepository _graphDataDefinitionRepository;
+        private readonly IActionObjectRepository _actionObjectRepository;
 
         public GraphService(
             IGraphConfigRepository graphConfigRepository,
-            IGraphDataDefinitionRepository graphDataDefinitionRepository)
+            IGraphDataDefinitionRepository graphDataDefinitionRepository,
+            IActionObjectRepository actionObjectRepository)
         {
             _graphConfigRepository = graphConfigRepository;
             _graphDataDefinitionRepository = graphDataDefinitionRepository;
+            _actionObjectRepository = actionObjectRepository;
         }
 
         // GraphConfig operations
@@ -41,16 +45,35 @@ namespace Application.Services
             return await _graphConfigRepository.GetByTypeAsync(type, pageRequest);
         }
 
-        public async Task<GraphConfigEntity> CreateGraphConfigAsync(GraphConfigDto graphConfigDto)
+        public async Task<GraphConfigEntity> CreateGraphConfigAsync(CreateGraphConfigRequest request)
         {
+            ActionObject? actionObject = null;
+
+            if (request.ParentFolderId.HasValue)
+            {
+                var folder = await _actionObjectRepository.GetByIdAsync(request.ParentFolderId.Value);
+                if (folder == null || folder.ObjectType != ObjectType.Folder)
+                    throw new ArgumentException("Folder not found.");
+
+                actionObject = new ActionObject
+                {
+                    Name = request.Name,
+                    ObjectType = ObjectType.Graph,
+                    ParentObjectId = request.ParentFolderId.Value,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _actionObjectRepository.AddAsync(actionObject);
+            }
+
             var graphConfig = new GraphConfigEntity
             {
-                Name = graphConfigDto.Name,
-                Type = (Core.Enums.GraphType)graphConfigDto.Type,
-                View = graphConfigDto.View,
-                Data = graphConfigDto.Data,
-                Meta = graphConfigDto.Meta,
-                IsActive = graphConfigDto.IsActive,
+                Name = request.Name,
+                Type = (GraphType)request.Type,
+                View = request.View,
+                Data = request.Data,
+                Meta = request.Meta,
+                IsActive = request.IsActive,
+                ActionObjectId = actionObject?.Id,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -99,17 +122,17 @@ namespace Application.Services
             return await _graphDataDefinitionRepository.GetAllAsync(pageRequest);
         }
 
-        public async Task<GraphDataDefinitionEntity> CreateGraphDataDefinitionAsync(GraphDataDefinitionDto graphDataDefinitionDto)
+        public async Task<GraphDataDefinitionEntity> CreateGraphDataDefinitionAsync(CreateGraphDataDefinitionRequest request)
         {
             var graphDataDefinition = new GraphDataDefinitionEntity
             {
-                GraphConfigId = graphDataDefinitionDto.GraphConfigId,
-                Source = graphDataDefinitionDto.Source,
-                SeriesCalculations = graphDataDefinitionDto.SeriesCalculations,
-                GlobalFilter = graphDataDefinitionDto.GlobalFilter,
-                SortRules = graphDataDefinitionDto.SortRules,
-                RowLimit = graphDataDefinitionDto.RowLimit,
-                IsActive = graphDataDefinitionDto.IsActive,
+                GraphConfigId = request.GraphConfigId,
+                Source = request.Source,
+                SeriesCalculations = request.SeriesCalculations,
+                GlobalFilter = request.GlobalFilter,
+                SortRules = request.SortRules,
+                RowLimit = request.RowLimit,
+                IsActive = request.IsActive,
                 CreatedAt = DateTime.UtcNow
             };
 
