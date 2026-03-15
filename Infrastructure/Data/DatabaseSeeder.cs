@@ -140,10 +140,7 @@ namespace Infrastructure.Data
 
             var rootFolders = new[]
             {
-                new { Name = "Dashboard", Route = "/dashboard", Icon = "dashboard", Sort = 0 },
-                new { Name = "Forms", Route = "/forms", Icon = "description", Sort = 1 },
-                new { Name = "Reports", Route = "/reports", Icon = "assessment", Sort = 2 },
-                new { Name = "Settings", Route = "/settings", Icon = "settings", Sort = 3 },
+                new { Name = "Organization", Route = "/", Icon = "org", Sort = 0 },
             };
 
             foreach (var folder in rootFolders)
