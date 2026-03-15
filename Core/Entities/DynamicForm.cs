@@ -23,5 +23,6 @@ namespace Core.Entities
         public virtual ICollection<DynamicFormSubmission> Submissions { get; set; } = new List<DynamicFormSubmission>();
         public virtual ICollection<DynamicFormRecord> Records { get; set; } = new List<DynamicFormRecord>();
         public virtual ICollection<DynamicFormFieldDefinition> FieldDefinitions { get; set; } = new List<DynamicFormFieldDefinition>();
+        public virtual ICollection<DynamicFormRecordValue> RecordValues { get; set; } = new List<DynamicFormRecordValue>();
     }
 }

@@ -26,6 +26,7 @@ namespace Infrastructure.Persistence
         public DbSet<DynamicFormSubmission> DynamicFormSubmissions { get; set; }
         public DbSet<DynamicFormRecord> DynamicFormRecords { get; set; }
         public DbSet<DynamicFormFieldDefinition> DynamicFormFieldDefinitions { get; set; }
+        public DbSet<DynamicFormRecordValue> DynamicFormRecordValues { get; set; }
         public DbSet<Feature> Features { get; set; }
         public DbSet<AppPermission> AppPermissions { get; set; }
         public DbSet<FeaturePermissionAssignment> FeaturePermissionAssignments { get; set; }
@@ -65,6 +66,9 @@ namespace Infrastructure.Persistence
                 .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
 
             modelBuilder.Entity<DynamicFormFieldDefinition>()
+                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
+
+            modelBuilder.Entity<DynamicFormRecordValue>()
                 .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
 
             modelBuilder.Entity<Permission>()
@@ -160,6 +164,13 @@ namespace Infrastructure.Persistence
                       .WithOne(r => r.Record)
                       .HasForeignKey<DynamicFormRecord>(r => r.SubmissionId)
                       .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure DynamicFormRecordValue (EAV)
+            modelBuilder.Entity<DynamicFormRecordValue>(entity =>
+            {
+                entity.HasIndex(e => new { e.SubmissionId, e.FieldDefinitionId }).IsUnique();
+                entity.HasIndex(e => new { e.FormId, e.FieldDefinitionId });
             });
 
             // ── RBAC configurations ──

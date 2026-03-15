@@ -237,17 +237,22 @@ namespace Controllers
 
                 if (dataDict != null && form.FieldDefinitions != null)
                 {
-                    var record = new DynamicFormRecord 
-                    { 
-                        FormId = id, 
+                    var record = new DynamicFormRecord
+                    {
+                        FormId = id,
                         SubmissionId = submission.Id,
-                        CreatedById = userId, 
-                        CreatedAt = DateTime.UtcNow 
+                        CreatedById = userId,
+                        CreatedAt = DateTime.UtcNow
                     };
 
                     MapFieldsToRecord(record, form.FieldDefinitions, dataDict);
 
                     _context.DynamicFormRecords.Add(record);
+
+                    // EAV: create one row per field value
+                    var eavValues = CreateEavRecordValues(id, submission.Id, userId, form.FieldDefinitions, dataDict);
+                    _context.DynamicFormRecordValues.AddRange(eavValues);
+
                     await _context.SaveChangesAsync();
                 }
             }
@@ -332,10 +337,19 @@ namespace Controllers
                     if (record != null)
                     {
                         MapFieldsToRecord(record, form.FieldDefinitions, dataDict);
-
                         record.UpdatedAt = DateTime.UtcNow;
-                        await _context.SaveChangesAsync();
                     }
+
+                    // EAV: remove old values and re-create
+                    var existingEav = await _context.DynamicFormRecordValues
+                        .Where(v => v.FormId == formId && v.SubmissionId == submissionId)
+                        .ToListAsync();
+                    _context.DynamicFormRecordValues.RemoveRange(existingEav);
+
+                    var eavValues = CreateEavRecordValues(formId, submissionId, userId, form.FieldDefinitions, dataDict);
+                    _context.DynamicFormRecordValues.AddRange(eavValues);
+
+                    await _context.SaveChangesAsync();
                 }
             }
             catch (Exception)
@@ -372,7 +386,7 @@ namespace Controllers
 
             await _submissionRepository.DeleteAsync(submissionId);
 
-            // Soft delete corresponding DynamicFormRecord if exists
+            // Soft delete corresponding DynamicFormRecord and EAV values if exists
             try
             {
                 var record = await _context.DynamicFormRecords
@@ -382,8 +396,19 @@ namespace Controllers
                 {
                     record.IsDeleted = true;
                     record.DeletedAt = DateTime.UtcNow;
-                    await _context.SaveChangesAsync();
                 }
+
+                // Soft delete EAV values
+                var eavValues = await _context.DynamicFormRecordValues
+                    .Where(v => v.FormId == formId && v.SubmissionId == submissionId)
+                    .ToListAsync();
+                foreach (var val in eavValues)
+                {
+                    val.IsDeleted = true;
+                    val.DeletedAt = DateTime.UtcNow;
+                }
+
+                await _context.SaveChangesAsync();
             }
             catch (Exception)
             {
@@ -432,6 +457,45 @@ namespace Controllers
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Creates EAV (Entity-Attribute-Value) record values from submission data.
+        /// </summary>
+        private static List<DynamicFormRecordValue> CreateEavRecordValues(
+            Guid formId,
+            Guid submissionId,
+            Guid? userId,
+            IEnumerable<DynamicFormFieldDefinition> fieldDefinitions,
+            Dictionary<string, System.Text.Json.JsonElement> dataDict)
+        {
+            var values = new List<DynamicFormRecordValue>();
+
+            foreach (var fieldDef in fieldDefinitions)
+            {
+                System.Text.Json.JsonElement jsonElement;
+                bool found = dataDict.TryGetValue(fieldDef.FieldName, out jsonElement) ||
+                             dataDict.TryGetValue(fieldDef.ColumnName, out jsonElement);
+
+                if (found)
+                {
+                    var stringValue = jsonElement.ValueKind == System.Text.Json.JsonValueKind.String
+                        ? jsonElement.GetString()
+                        : jsonElement.GetRawText();
+
+                    values.Add(new DynamicFormRecordValue
+                    {
+                        FormId = formId,
+                        SubmissionId = submissionId,
+                        FieldDefinitionId = fieldDef.Id,
+                        Value = stringValue,
+                        CreatedById = userId,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+            }
+
+            return values;
         }
 
         #endregion

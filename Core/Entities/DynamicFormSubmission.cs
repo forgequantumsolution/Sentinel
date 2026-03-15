@@ -18,5 +18,7 @@ namespace Core.Entities
         public string DataJson { get; set; }
 
         public virtual DynamicFormRecord? Record { get; set; }
+
+        public virtual ICollection<DynamicFormRecordValue> RecordValues { get; set; } = new List<DynamicFormRecordValue>();
     }
 }
