@@ -1,5 +1,6 @@
 using Core.Entities;
 using Application.Interfaces.Persistence;
+using Application.Common.Pagination;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Persistence.Repositories
@@ -29,14 +30,28 @@ namespace Infrastructure.Persistence.Repositories
                 .FirstOrDefaultAsync(g => g.GraphConfigId == graphConfigId);
         }
 
-        public async Task<List<GraphDataDefinitionEntity>> GetAllAsync()
+        public async Task<PagedResult<GraphDataDefinitionEntity>> GetAllAsync(PageRequest pageRequest)
         {
-            return await _context.GraphDataDefinitions
+            var query = _context.GraphDataDefinitions
                 .Include(g => g.GraphConfig)
                 .Include(g => g.CreatedBy)
                 .Include(g => g.Organization)
                 .Where(g => !g.IsDeleted)
+                .OrderByDescending(g => g.CreatedAt);
+
+            var totalCount = await query.CountAsync();
+            var items = await query
+                .Skip(pageRequest.Skip)
+                .Take(pageRequest.PageSize)
                 .ToListAsync();
+
+            return new PagedResult<GraphDataDefinitionEntity>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = pageRequest.Page,
+                PageSize = pageRequest.PageSize
+            };
         }
 
         public async Task<List<GraphDataDefinitionEntity>> GetByDataSourceTypeAsync(Core.Enums.DataSourceType dataSourceType)

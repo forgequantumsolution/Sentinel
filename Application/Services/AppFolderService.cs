@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Application.DTOs;
+using Application.Common.Pagination;
 using Application.Interfaces.Persistence;
 using Application.Interfaces.Services;
 using Core.Entities;
@@ -23,11 +24,20 @@ namespace Application.Services
             return MapToDto(obj);
         }
 
-        public async Task<List<AppFolderDto>> GetAllTreeAsync()
+        public async Task<PagedResult<AppFolderDto>> GetAllTreeAsync(PageRequest pageRequest)
         {
-            var allFolders = await _repository.GetByTypeAsync(ObjectType.Folder);
-            var roots = allFolders.Where(f => f.ParentObjectId == null).ToList();
-            return roots.Select(f => MapToTreeDto(f, allFolders)).ToList();
+            var pagedResult = await _repository.GetByTypeAsync(ObjectType.Folder, pageRequest);
+            var allItems = pagedResult.Items.ToList();
+            var roots = allItems.Where(f => f.ParentObjectId == null).ToList();
+            var treeDtos = roots.Select(f => MapToTreeDto(f, allItems)).ToList();
+
+            return new PagedResult<AppFolderDto>
+            {
+                Items = treeDtos,
+                TotalCount = pagedResult.TotalCount,
+                Page = pagedResult.Page,
+                PageSize = pagedResult.PageSize
+            };
         }
 
         public async Task<AppFolderDto?> GetByRouteAsync(string route)

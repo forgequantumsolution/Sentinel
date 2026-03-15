@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Application.DTOs;
+using Application.Common.Pagination;
 using Core.Entities;
 using Application.Interfaces.Services;
 
@@ -19,10 +20,10 @@ namespace Controllers
         // GraphConfig endpoints
 
         [HttpGet("configs")]
-        public async Task<IActionResult> GetAllGraphConfigs()
+        public async Task<IActionResult> GetAllGraphConfigs([FromQuery] PageRequest pageRequest)
         {
-            var graphConfigs = await _graphService.GetAllGraphConfigsAsync();
-            var dtos = graphConfigs.Select(g => new GraphConfigDto
+            var pagedResult = await _graphService.GetAllGraphConfigsAsync(pageRequest);
+            var dtos = pagedResult.Items.Select(g => new GraphConfigDto
             {
                 Id = g.Id,
                 Name = g.Name,
@@ -36,7 +37,14 @@ namespace Controllers
                 CreatedById = g.CreatedById,
                 OrganizationId = g.OrganizationId
             });
-            return Ok(dtos);
+
+            return Ok(new PagedResult<GraphConfigDto>
+            {
+                Items = dtos,
+                TotalCount = pagedResult.TotalCount,
+                Page = pagedResult.Page,
+                PageSize = pagedResult.PageSize
+            });
         }
 
         [HttpGet("configs/{id}")]
@@ -86,10 +94,10 @@ namespace Controllers
         }
 
         [HttpGet("configs/type/{type}")]
-        public async Task<IActionResult> GetGraphConfigsByType(int type)
+        public async Task<IActionResult> GetGraphConfigsByType(int type, [FromQuery] PageRequest pageRequest)
         {
-            var graphConfigs = await _graphService.GetGraphConfigsByTypeAsync((Core.Enums.GraphType)type);
-            var dtos = graphConfigs.Select(g => new GraphConfigDto
+            var pagedResult = await _graphService.GetGraphConfigsByTypeAsync((Core.Enums.GraphType)type, pageRequest);
+            var dtos = pagedResult.Items.Select(g => new GraphConfigDto
             {
                 Id = g.Id,
                 Name = g.Name,
@@ -103,7 +111,14 @@ namespace Controllers
                 CreatedById = g.CreatedById,
                 OrganizationId = g.OrganizationId
             });
-            return Ok(dtos);
+
+            return Ok(new PagedResult<GraphConfigDto>
+            {
+                Items = dtos,
+                TotalCount = pagedResult.TotalCount,
+                Page = pagedResult.Page,
+                PageSize = pagedResult.PageSize
+            });
         }
 
         [HttpPost("configs")]
@@ -146,10 +161,10 @@ namespace Controllers
         // GraphDataDefinition endpoints
 
         [HttpGet("data-definitions")]
-        public async Task<IActionResult> GetAllGraphDataDefinitions()
+        public async Task<IActionResult> GetAllGraphDataDefinitions([FromQuery] PageRequest pageRequest)
         {
-            var dataDefinitions = await _graphService.GetAllGraphDataDefinitionsAsync();
-            var dtos = dataDefinitions.Select(d => new GraphDataDefinitionDto
+            var pagedResult = await _graphService.GetAllGraphDataDefinitionsAsync(pageRequest);
+            var dtos = pagedResult.Items.Select(d => new GraphDataDefinitionDto
             {
                 Id = d.Id,
                 GraphConfigId = d.GraphConfigId,
@@ -164,7 +179,14 @@ namespace Controllers
                 CreatedById = d.CreatedById,
                 OrganizationId = d.OrganizationId
             });
-            return Ok(dtos);
+
+            return Ok(new PagedResult<GraphDataDefinitionDto>
+            {
+                Items = dtos,
+                TotalCount = pagedResult.TotalCount,
+                Page = pagedResult.Page,
+                PageSize = pagedResult.PageSize
+            });
         }
 
         [HttpGet("data-definitions/{id}")]

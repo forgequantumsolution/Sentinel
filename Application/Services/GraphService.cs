@@ -1,6 +1,7 @@
 using Core.Entities;
 using Core.Models;
 using Application.DTOs;
+using Application.Common.Pagination;
 using Application.Interfaces.Persistence;
 using Application.Interfaces.Services;
 
@@ -30,14 +31,14 @@ namespace Application.Services
             return await _graphConfigRepository.GetByNameAsync(name);
         }
 
-        public async Task<List<GraphConfigEntity>> GetAllGraphConfigsAsync()
+        public async Task<PagedResult<GraphConfigEntity>> GetAllGraphConfigsAsync(PageRequest pageRequest)
         {
-            return await _graphConfigRepository.GetAllAsync();
+            return await _graphConfigRepository.GetAllAsync(pageRequest);
         }
 
-        public async Task<List<GraphConfigEntity>> GetGraphConfigsByTypeAsync(Core.Enums.GraphType type)
+        public async Task<PagedResult<GraphConfigEntity>> GetGraphConfigsByTypeAsync(Core.Enums.GraphType type, PageRequest pageRequest)
         {
-            return await _graphConfigRepository.GetByTypeAsync(type);
+            return await _graphConfigRepository.GetByTypeAsync(type, pageRequest);
         }
 
         public async Task<GraphConfigEntity> CreateGraphConfigAsync(GraphConfigDto graphConfigDto)
@@ -93,9 +94,9 @@ namespace Application.Services
             return await _graphDataDefinitionRepository.GetByGraphConfigIdAsync(graphConfigId);
         }
 
-        public async Task<List<GraphDataDefinitionEntity>> GetAllGraphDataDefinitionsAsync()
+        public async Task<PagedResult<GraphDataDefinitionEntity>> GetAllGraphDataDefinitionsAsync(PageRequest pageRequest)
         {
-            return await _graphDataDefinitionRepository.GetAllAsync();
+            return await _graphDataDefinitionRepository.GetAllAsync(pageRequest);
         }
 
         public async Task<GraphDataDefinitionEntity> CreateGraphDataDefinitionAsync(GraphDataDefinitionDto graphDataDefinitionDto)

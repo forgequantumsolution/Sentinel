@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Application.DTOs;
+using Application.Common.Pagination;
 using Application.Interfaces.Services;
 using System.Security.Claims;
 
@@ -19,10 +20,10 @@ namespace Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll([FromQuery] PageRequest pageRequest)
         {
-            var tree = await _folderService.GetAllTreeAsync();
-            return Ok(tree);
+            var result = await _folderService.GetAllTreeAsync(pageRequest);
+            return Ok(result);
         }
 
         [HttpGet("{id}")]

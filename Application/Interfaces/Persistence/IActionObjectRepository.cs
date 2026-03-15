@@ -1,5 +1,6 @@
 using Core.Entities;
 using Core.Enums;
+using Application.Common.Pagination;
 
 namespace Application.Interfaces.Persistence
 {
@@ -7,7 +8,7 @@ namespace Application.Interfaces.Persistence
     {
         Task<ActionObject?> GetByIdAsync(Guid id);
         Task<List<ActionObject>> GetAllAsync();
-        Task<List<ActionObject>> GetByTypeAsync(ObjectType objectType);
+        Task<PagedResult<ActionObject>> GetByTypeAsync(ObjectType objectType, PageRequest pageRequest);
         Task<List<ActionObject>> GetRootsByTypeAsync(ObjectType objectType);
         Task<List<ActionObject>> GetChildrenAsync(Guid parentObjectId);
         Task<ActionObject?> GetByRouteAsync(string route);

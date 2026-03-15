@@ -1,5 +1,6 @@
 using Core.Entities;
 using Application.Interfaces.Persistence;
+using Application.Common.Pagination;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Persistence.Repositories
@@ -27,20 +28,50 @@ namespace Infrastructure.Persistence.Repositories
                 .FirstOrDefaultAsync(g => g.Name == name);
         }
 
-        public async Task<List<GraphConfigEntity>> GetAllAsync()
+        public async Task<PagedResult<GraphConfigEntity>> GetAllAsync(PageRequest pageRequest)
         {
-            return await _context.GraphConfigs
+            var query = _context.GraphConfigs
                 .Include(g => g.CreatedBy)
                 .Include(g => g.Organization)
                 .Where(g => !g.IsDeleted)
+                .OrderByDescending(g => g.CreatedAt);
+
+            var totalCount = await query.CountAsync();
+            var items = await query
+                .Skip(pageRequest.Skip)
+                .Take(pageRequest.PageSize)
                 .ToListAsync();
+
+            return new PagedResult<GraphConfigEntity>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = pageRequest.Page,
+                PageSize = pageRequest.PageSize
+            };
         }
 
-        public async Task<List<GraphConfigEntity>> GetByTypeAsync(Core.Enums.GraphType type)
+        public async Task<PagedResult<GraphConfigEntity>> GetByTypeAsync(Core.Enums.GraphType type, PageRequest pageRequest)
         {
-            return await _context.GraphConfigs
+            var query = _context.GraphConfigs
+                .Include(g => g.CreatedBy)
+                .Include(g => g.Organization)
                 .Where(g => g.Type == type && !g.IsDeleted)
+                .OrderByDescending(g => g.CreatedAt);
+
+            var totalCount = await query.CountAsync();
+            var items = await query
+                .Skip(pageRequest.Skip)
+                .Take(pageRequest.PageSize)
                 .ToListAsync();
+
+            return new PagedResult<GraphConfigEntity>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = pageRequest.Page,
+                PageSize = pageRequest.PageSize
+            };
         }
 
         public async Task AddAsync(GraphConfigEntity graphConfig)

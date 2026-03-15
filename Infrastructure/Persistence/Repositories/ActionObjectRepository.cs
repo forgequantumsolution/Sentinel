@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Core.Entities;
 using Core.Enums;
 using Application.Interfaces.Persistence;
+using Application.Common.Pagination;
 
 namespace Infrastructure.Persistence.Repositories
 {
@@ -32,14 +33,27 @@ namespace Infrastructure.Persistence.Repositories
                 .ToListAsync();
         }
 
-        public async Task<List<ActionObject>> GetByTypeAsync(ObjectType objectType)
+        public async Task<PagedResult<ActionObject>> GetByTypeAsync(ObjectType objectType, PageRequest pageRequest)
         {
-            return await _context.ActionObjects
+            var query = _context.ActionObjects
                 .Include(ao => ao.ParentObject)
                 .Include(ao => ao.ChildObjects)
                 .Where(ao => ao.ObjectType == objectType && !ao.IsDeleted)
-                .OrderBy(ao => ao.SortOrder)
+                .OrderBy(ao => ao.SortOrder);
+
+            var totalCount = await query.CountAsync();
+            var items = await query
+                .Skip(pageRequest.Skip)
+                .Take(pageRequest.PageSize)
                 .ToListAsync();
+
+            return new PagedResult<ActionObject>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = pageRequest.Page,
+                PageSize = pageRequest.PageSize
+            };
         }
 
         public async Task<List<ActionObject>> GetRootsByTypeAsync(ObjectType objectType)

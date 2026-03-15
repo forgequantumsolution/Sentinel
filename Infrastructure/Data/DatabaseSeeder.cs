@@ -12,48 +12,162 @@ namespace Infrastructure.Data
         {
             try
             {
-                var sqlFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "SeedData.sql");
-                
-                // Fallback for development if BaseDirectory doesn't work as expected
-                if (!File.Exists(sqlFilePath))
-                {
-                    var projectDir = Directory.GetCurrentDirectory();
-                    sqlFilePath = Path.Combine(projectDir, "..", "Infrastructure", "Data", "SeedData.sql");
-                }
-
-                if (!File.Exists(sqlFilePath))
-                {
-                    // Second fallback for direct project run
-                    sqlFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Infrastructure", "Data", "SeedData.sql");
-                }
-
-                if (!File.Exists(sqlFilePath))
-                {
-                     // Final fallback: try just the current directory path for the Infrastructure project
-                     sqlFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SeedData.sql");
-                }
-
-                if (File.Exists(sqlFilePath))
-                {
-                    var sql = await File.ReadAllTextAsync(sqlFilePath);
-                    
-                    // Generate hash for default admin password and replace placeholder
-                    var adminHash = passwordHasher.HashPassword("Admin123!");
-                    sql = sql.Replace("'AQAAAAIAAYagAAAAEJrO6yvXm5H9p0V1Z2W3X4Y5Z6A7B8C9D0E1F2G3H4I5J6K7L8M9N0O1P2Q3R=='", $"'{adminHash}'");
-
-                    await context.Database.ExecuteSqlRawAsync(sql);
-                }
-                else
-                {
-                    Console.WriteLine($"Warning: Seed SQL file not found at {sqlFilePath}. Skipping SQL seed.");
-                    // Optional: Fallback to manual seeding if file is missing
-                }
+                await SeedSqlFileAsync(context, passwordHasher);
+                await SeedDefaultOrganizationAsync(context);
+                await SeedDefaultRoleAndUserAsync(context, passwordHasher);
+                await SeedDefaultFoldersAsync(context);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error during SQL seeding: {ex.Message}");
+                Console.WriteLine($"Error during seeding: {ex.Message}");
                 throw;
             }
+        }
+
+        private static async Task SeedSqlFileAsync(AppDbContext context, IPasswordHasher passwordHasher)
+        {
+            var sqlFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "SeedData.sql");
+
+            if (!File.Exists(sqlFilePath))
+            {
+                var projectDir = Directory.GetCurrentDirectory();
+                sqlFilePath = Path.Combine(projectDir, "..", "Infrastructure", "Data", "SeedData.sql");
+            }
+
+            if (!File.Exists(sqlFilePath))
+                sqlFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Infrastructure", "Data", "SeedData.sql");
+
+            if (!File.Exists(sqlFilePath))
+                sqlFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SeedData.sql");
+
+            if (File.Exists(sqlFilePath))
+            {
+                var sql = await File.ReadAllTextAsync(sqlFilePath);
+
+                var adminHash = passwordHasher.HashPassword("Admin123!");
+                sql = sql.Replace("'AQAAAAIAAYagAAAAEJrO6yvXm5H9p0V1Z2W3X4Y5Z6A7B8C9D0E1F2G3H4I5J6K7L8M9N0O1P2Q3R=='", $"'{adminHash}'");
+
+                await context.Database.ExecuteSqlRawAsync(sql);
+            }
+            else
+            {
+                Console.WriteLine($"Warning: Seed SQL file not found. Skipping SQL seed.");
+            }
+        }
+
+        private static async Task SeedDefaultOrganizationAsync(AppDbContext context)
+        {
+            var exists = await context.Organizations
+                .IgnoreQueryFilters()
+                .AnyAsync(o => o.Code == "DEFAULT");
+
+            if (exists) return;
+
+            var org = new Organization
+            {
+                Name = "Default Organization",
+                Code = "DEFAULT",
+                Description = "System default organization",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            context.Organizations.Add(org);
+            await context.SaveChangesAsync();
+
+            Console.WriteLine($"Seeded default organization: {org.Id}");
+        }
+
+        private static async Task SeedDefaultRoleAndUserAsync(AppDbContext context, IPasswordHasher passwordHasher)
+        {
+            var defaultOrg = await context.Organizations
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(o => o.Code == "DEFAULT");
+
+            if (defaultOrg == null) return;
+
+            // Seed sys-admin role
+            var role = await context.Roles
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(r => r.Name == "sys-admin");
+
+            if (role == null)
+            {
+                role = new Role
+                {
+                    Name = "sys-admin",
+                    Description = "System Administrator",
+                    IsDefault = false,
+                    OrganizationId = defaultOrg.Id,
+                    CreatedAt = DateTime.UtcNow
+                };
+                context.Roles.Add(role);
+                await context.SaveChangesAsync();
+                Console.WriteLine("Seeded default role: sys-admin");
+            }
+
+            // Seed default admin user
+            var adminExists = await context.Users
+                .IgnoreQueryFilters()
+                .AnyAsync(u => u.Email == "admin@system.local");
+
+            if (adminExists) return;
+
+            var admin = new User
+            {
+                Name = "System Admin",
+                Email = "admin@system.local",
+                PasswordHash = passwordHasher.HashPassword("Admin123!"),
+                RoleId = role.Id,
+                OrganizationId = defaultOrg.Id,
+                IsEmailVerified = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            context.Users.Add(admin);
+            await context.SaveChangesAsync();
+
+            Console.WriteLine($"Seeded default admin user: {admin.Email}");
+        }
+
+        private static async Task SeedDefaultFoldersAsync(AppDbContext context)
+        {
+            var defaultOrg = await context.Organizations
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(o => o.Code == "DEFAULT");
+
+            if (defaultOrg == null) return;
+
+            var rootFolders = new[]
+            {
+                new { Name = "Dashboard", Route = "/dashboard", Icon = "dashboard", Sort = 0 },
+                new { Name = "Forms", Route = "/forms", Icon = "description", Sort = 1 },
+                new { Name = "Reports", Route = "/reports", Icon = "assessment", Sort = 2 },
+                new { Name = "Settings", Route = "/settings", Icon = "settings", Sort = 3 },
+            };
+
+            foreach (var folder in rootFolders)
+            {
+                var exists = await context.ActionObjects
+                    .IgnoreQueryFilters()
+                    .AnyAsync(ao => ao.Route == folder.Route && ao.ObjectType == ObjectType.Folder);
+
+                if (exists) continue;
+
+                context.ActionObjects.Add(new ActionObject
+                {
+                    Name = folder.Name,
+                    Route = folder.Route,
+                    Icon = folder.Icon,
+                    SortOrder = folder.Sort,
+                    ObjectType = ObjectType.Folder,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            await context.SaveChangesAsync();
+
+            Console.WriteLine("Seeded default root folders.");
         }
     }
 }
