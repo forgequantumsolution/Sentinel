@@ -43,4 +43,31 @@ namespace Application.DTOs
     {
         public Guid ActionObjectId { get; set; }
     }
+
+    public class CreateActionObjectInFolderDto
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? Code { get; set; }
+        public string? Description { get; set; }
+        public ObjectType ObjectType { get; set; } = ObjectType.Feature;
+        public string? Route { get; set; }
+        public string? Icon { get; set; }
+        public int SortOrder { get; set; } = 0;
+    }
+
+    public class ActionObjectDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Code { get; set; }
+        public string? Description { get; set; }
+        public string ObjectType { get; set; } = string.Empty;
+        public string? Route { get; set; }
+        public string? Icon { get; set; }
+        public int SortOrder { get; set; }
+        public Guid? ParentObjectId { get; set; }
+        public string? ParentName { get; set; }
+        public bool IsActive { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
 }

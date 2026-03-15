@@ -86,9 +86,47 @@ namespace Controllers
         }
 
         /// <summary>
-        /// Move an ActionObject into this folder (sets its ParentObjectId).
+        /// List all children (ActionObjects) inside a folder.
         /// </summary>
-        [HttpPost("{folderId}/children")]
+        [HttpGet("{folderId}/children")]
+        public async Task<IActionResult> GetFolderChildren(Guid folderId, [FromQuery] PageRequest pageRequest)
+        {
+            try
+            {
+                var result = await _folderService.GetFolderChildrenAsync(folderId, pageRequest);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Create a new ActionObject directly inside a folder.
+        /// </summary>
+        [HttpPost("{folderId}/children/create")]
+        [Authorize(Roles = "sys-admin")]
+        public async Task<IActionResult> CreateObjectInFolder(Guid folderId, [FromBody] CreateActionObjectInFolderDto dto)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            Guid? userId = Guid.TryParse(userIdClaim, out var parsed) ? parsed : null;
+
+            try
+            {
+                var result = await _folderService.CreateObjectInFolderAsync(folderId, dto, userId);
+                return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Move an existing ActionObject into this folder.
+        /// </summary>
+        [HttpPost("{folderId}/children/move")]
         [Authorize(Roles = "sys-admin")]
         public async Task<IActionResult> MoveToFolder(Guid folderId, [FromBody] MoveToFolderDto dto)
         {

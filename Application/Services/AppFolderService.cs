@@ -142,6 +142,59 @@ namespace Application.Services
             return true;
         }
 
+        public async Task<ActionObjectDto> CreateObjectInFolderAsync(Guid folderId, CreateActionObjectInFolderDto dto, Guid? userId)
+        {
+            var folder = await _repository.GetByIdAsync(folderId);
+            if (folder == null || folder.ObjectType != ObjectType.Folder)
+                throw new ArgumentException("Folder not found.");
+
+            string? route = null;
+            if (!string.IsNullOrWhiteSpace(dto.Route))
+            {
+                route = NormalizeRoute(dto.Route);
+                if (await _repository.RouteExistsAsync(route))
+                    throw new ArgumentException($"Route '{route}' already exists.");
+            }
+            else if (dto.ObjectType == ObjectType.Folder)
+            {
+                route = await GenerateDefaultRouteAsync(dto.Name, folderId);
+            }
+
+            var actionObject = new ActionObject
+            {
+                Name = dto.Name,
+                Code = dto.Code,
+                Description = dto.Description,
+                ObjectType = dto.ObjectType,
+                Route = route,
+                Icon = dto.Icon,
+                SortOrder = dto.SortOrder,
+                ParentObjectId = folderId,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _repository.AddAsync(actionObject);
+
+            return MapToActionObjectDto(actionObject);
+        }
+
+        public async Task<PagedResult<ActionObjectDto>> GetFolderChildrenAsync(Guid folderId, PageRequest pageRequest)
+        {
+            var folder = await _repository.GetByIdAsync(folderId);
+            if (folder == null || folder.ObjectType != ObjectType.Folder)
+                throw new ArgumentException("Folder not found.");
+
+            var pagedResult = await _repository.GetChildrenPagedAsync(folderId, pageRequest);
+
+            return new PagedResult<ActionObjectDto>
+            {
+                Items = pagedResult.Items.Select(MapToActionObjectDto),
+                TotalCount = pagedResult.TotalCount,
+                Page = pagedResult.Page,
+                PageSize = pagedResult.PageSize
+            };
+        }
+
         // ── Route generation ──
 
         /// <summary>
@@ -224,6 +277,25 @@ namespace Application.Services
             var children = allFolders.Where(f => f.ParentObjectId == obj.Id).ToList();
             dto.Children = children.Select(c => MapToTreeDto(c, allFolders)).ToList();
             return dto;
+        }
+
+        private static ActionObjectDto MapToActionObjectDto(ActionObject obj)
+        {
+            return new ActionObjectDto
+            {
+                Id = obj.Id,
+                Name = obj.Name,
+                Code = obj.Code,
+                Description = obj.Description,
+                ObjectType = obj.ObjectType.ToString(),
+                Route = obj.Route,
+                Icon = obj.Icon,
+                SortOrder = obj.SortOrder,
+                ParentObjectId = obj.ParentObjectId,
+                ParentName = obj.ParentObject?.Name,
+                IsActive = obj.IsActive,
+                CreatedAt = obj.CreatedAt
+            };
         }
     }
 }

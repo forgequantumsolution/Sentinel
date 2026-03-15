@@ -13,5 +13,7 @@ namespace Application.Interfaces.Services
         Task<bool> DeleteAsync(Guid id);
         Task<bool> MoveToFolderAsync(Guid folderId, Guid actionObjectId);
         Task<bool> RemoveFromFolderAsync(Guid actionObjectId);
+        Task<ActionObjectDto> CreateObjectInFolderAsync(Guid folderId, CreateActionObjectInFolderDto dto, Guid? userId);
+        Task<PagedResult<ActionObjectDto>> GetFolderChildrenAsync(Guid folderId, PageRequest pageRequest);
     }
 }

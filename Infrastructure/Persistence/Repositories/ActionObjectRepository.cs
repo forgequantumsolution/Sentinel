@@ -74,6 +74,28 @@ namespace Infrastructure.Persistence.Repositories
                 .ToListAsync();
         }
 
+        public async Task<PagedResult<ActionObject>> GetChildrenPagedAsync(Guid parentObjectId, PageRequest pageRequest)
+        {
+            var query = _context.ActionObjects
+                .Include(ao => ao.ParentObject)
+                .Where(ao => ao.ParentObjectId == parentObjectId && !ao.IsDeleted)
+                .OrderBy(ao => ao.SortOrder);
+
+            var totalCount = await query.CountAsync();
+            var items = await query
+                .Skip(pageRequest.Skip)
+                .Take(pageRequest.PageSize)
+                .ToListAsync();
+
+            return new PagedResult<ActionObject>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = pageRequest.Page,
+                PageSize = pageRequest.PageSize
+            };
+        }
+
         public async Task<ActionObject?> GetByRouteAsync(string route)
         {
             return await _context.ActionObjects
