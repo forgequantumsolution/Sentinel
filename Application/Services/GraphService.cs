@@ -81,19 +81,49 @@ namespace Application.Services
             return graphConfig;
         }
 
-        public async Task UpdateGraphConfigAsync(Guid id, GraphConfigDto graphConfigDto)
+        public async Task UpdateGraphConfigAsync(Guid id, UpdateGraphConfigRequest request)
         {
             var graphConfig = await _graphConfigRepository.GetByIdAsync(id);
             if (graphConfig == null)
                 throw new KeyNotFoundException($"GraphConfig with id {id} not found");
 
-            graphConfig.Name = graphConfigDto.Name;
-            graphConfig.Type = (Core.Enums.GraphType)graphConfigDto.Type;
-            graphConfig.View = graphConfigDto.View;
-            graphConfig.Data = graphConfigDto.Data;
-            graphConfig.Meta = graphConfigDto.Meta;
-            graphConfig.IsActive = graphConfigDto.IsActive;
+            graphConfig.Name = request.Name;
+            graphConfig.Type = (GraphType)request.Type;
+            graphConfig.View = request.View;
+            graphConfig.Data = request.Data;
+            graphConfig.Meta = request.Meta;
+            graphConfig.IsActive = request.IsActive;
             graphConfig.UpdatedAt = DateTime.UtcNow;
+
+            // Handle folder move
+            if (request.ParentFolderId.HasValue)
+            {
+                if (graphConfig.ActionObjectId.HasValue)
+                {
+                    // Move existing ActionObject to new folder
+                    var ao = await _actionObjectRepository.GetByIdAsync(graphConfig.ActionObjectId.Value);
+                    if (ao != null)
+                    {
+                        ao.Name = request.Name;
+                        ao.ParentObjectId = request.ParentFolderId.Value;
+                        ao.UpdatedAt = DateTime.UtcNow;
+                        await _actionObjectRepository.UpdateAsync(ao);
+                    }
+                }
+                else
+                {
+                    // Create new ActionObject in folder
+                    var ao = new ActionObject
+                    {
+                        Name = request.Name,
+                        ObjectType = ObjectType.Graph,
+                        ParentObjectId = request.ParentFolderId.Value,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    await _actionObjectRepository.AddAsync(ao);
+                    graphConfig.ActionObjectId = ao.Id;
+                }
+            }
 
             await _graphConfigRepository.UpdateAsync(graphConfig);
         }
@@ -140,19 +170,18 @@ namespace Application.Services
             return graphDataDefinition;
         }
 
-        public async Task UpdateGraphDataDefinitionAsync(Guid id, GraphDataDefinitionDto graphDataDefinitionDto)
+        public async Task UpdateGraphDataDefinitionAsync(Guid id, UpdateGraphDataDefinitionRequest request)
         {
             var graphDataDefinition = await _graphDataDefinitionRepository.GetByIdAsync(id);
             if (graphDataDefinition == null)
                 throw new KeyNotFoundException($"GraphDataDefinition with id {id} not found");
 
-            graphDataDefinition.GraphConfigId = graphDataDefinitionDto.GraphConfigId;
-            graphDataDefinition.Source = graphDataDefinitionDto.Source;
-            graphDataDefinition.SeriesCalculations = graphDataDefinitionDto.SeriesCalculations;
-            graphDataDefinition.GlobalFilter = graphDataDefinitionDto.GlobalFilter;
-            graphDataDefinition.SortRules = graphDataDefinitionDto.SortRules;
-            graphDataDefinition.RowLimit = graphDataDefinitionDto.RowLimit;
-            graphDataDefinition.IsActive = graphDataDefinitionDto.IsActive;
+            graphDataDefinition.Source = request.Source;
+            graphDataDefinition.SeriesCalculations = request.SeriesCalculations;
+            graphDataDefinition.GlobalFilter = request.GlobalFilter;
+            graphDataDefinition.SortRules = request.SortRules;
+            graphDataDefinition.RowLimit = request.RowLimit;
+            graphDataDefinition.IsActive = request.IsActive;
             graphDataDefinition.UpdatedAt = DateTime.UtcNow;
 
             await _graphDataDefinitionRepository.UpdateAsync(graphDataDefinition);

@@ -13,7 +13,7 @@ namespace Application.Interfaces.Services
         Task<PagedResult<GraphConfigEntity>> GetAllGraphConfigsAsync(PageRequest pageRequest);
         Task<PagedResult<GraphConfigEntity>> GetGraphConfigsByTypeAsync(Core.Enums.GraphType type, PageRequest pageRequest);
         Task<GraphConfigEntity> CreateGraphConfigAsync(CreateGraphConfigRequest request);
-        Task UpdateGraphConfigAsync(Guid id, GraphConfigDto graphConfigDto);
+        Task UpdateGraphConfigAsync(Guid id, UpdateGraphConfigRequest request);
         Task DeleteGraphConfigAsync(Guid id);
 
         // GraphDataDefinition operations
@@ -21,7 +21,7 @@ namespace Application.Interfaces.Services
         Task<GraphDataDefinitionEntity?> GetGraphDataDefinitionByGraphConfigIdAsync(Guid graphConfigId);
         Task<PagedResult<GraphDataDefinitionEntity>> GetAllGraphDataDefinitionsAsync(PageRequest pageRequest);
         Task<GraphDataDefinitionEntity> CreateGraphDataDefinitionAsync(CreateGraphDataDefinitionRequest request);
-        Task UpdateGraphDataDefinitionAsync(Guid id, GraphDataDefinitionDto graphDataDefinitionDto);
+        Task UpdateGraphDataDefinitionAsync(Guid id, UpdateGraphDataDefinitionRequest request);
         Task DeleteGraphDataDefinitionAsync(Guid id);
         Task DeleteGraphDataDefinitionsByGraphConfigIdAsync(Guid graphConfigId);
 

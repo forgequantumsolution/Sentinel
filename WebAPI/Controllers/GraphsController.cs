@@ -71,9 +71,9 @@ namespace Controllers
         }
 
         [HttpPut("configs/{id}")]
-        public async Task<IActionResult> UpdateGraphConfig(Guid id, [FromBody] GraphConfigDto dto)
+        public async Task<IActionResult> UpdateGraphConfig(Guid id, [FromBody] UpdateGraphConfigRequest request)
         {
-            await _graphService.UpdateGraphConfigAsync(id, dto);
+            await _graphService.UpdateGraphConfigAsync(id, request);
             return NoContent();
         }
 
@@ -124,9 +124,9 @@ namespace Controllers
         }
 
         [HttpPut("data-definitions/{id}")]
-        public async Task<IActionResult> UpdateGraphDataDefinition(Guid id, [FromBody] GraphDataDefinitionDto dto)
+        public async Task<IActionResult> UpdateGraphDataDefinition(Guid id, [FromBody] UpdateGraphDataDefinitionRequest request)
         {
-            await _graphService.UpdateGraphDataDefinitionAsync(id, dto);
+            await _graphService.UpdateGraphDataDefinitionAsync(id, request);
             return NoContent();
         }
 
