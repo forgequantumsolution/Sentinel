@@ -30,6 +30,7 @@ namespace Infrastructure.Persistence
         public DbSet<DynamicFormRecord> DynamicFormRecords { get; set; }
         public DbSet<DynamicFormFieldDefinition> DynamicFormFieldDefinitions { get; set; }
         public DbSet<DynamicFormRecordValue> DynamicFormRecordValues { get; set; }
+        public DbSet<DynamicFormDraft> DynamicFormDrafts { get; set; }
         public DbSet<Feature> Features { get; set; }
         public DbSet<AppPermission> AppPermissions { get; set; }
         public DbSet<FeaturePermissionAssignment> FeaturePermissionAssignments { get; set; }
@@ -74,6 +75,16 @@ namespace Infrastructure.Persistence
 
             modelBuilder.Entity<DynamicFormRecordValue>()
                 .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
+
+            modelBuilder.Entity<DynamicFormDraft>(entity =>
+            {
+                entity.HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
+
+                // One active draft per user per form
+                entity.HasIndex(d => new { d.FormId, d.CreatedById })
+                      .IsUnique()
+                      .HasFilter("\"IsDeleted\" = false");
+            });
 
             modelBuilder.Entity<Permission>()
                 .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);

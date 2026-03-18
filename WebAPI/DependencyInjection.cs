@@ -32,6 +32,7 @@ namespace WebAPI
             services.AddScoped<IUserGroupRepository, UserGroupRepository>();
             services.AddScoped<IDynamicFormRepository, DynamicFormRepository>();
             services.AddScoped<IDynamicFormSubmissionRepository, DynamicFormSubmissionRepository>();
+            services.AddScoped<IDynamicFormDraftRepository, DynamicFormDraftRepository>();
             services.AddScoped<IGraphConfigRepository, GraphConfigRepository>();
             services.AddScoped<IGraphDataDefinitionRepository, GraphDataDefinitionRepository>();
             services.AddScoped<IDynamicGroupingRuleRepository, DynamicGroupingRuleRepository>();

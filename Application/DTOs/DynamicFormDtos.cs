@@ -49,6 +49,21 @@ namespace Application.DTOs
         public string DataJson { get; set; }
     }
 
+    public class DynamicFormDraftDto
+    {
+        public Guid Id { get; set; }
+        public Guid FormId { get; set; }
+        public string DataJson { get; set; }
+        public Guid? CreatedById { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+    }
+
+    public class SaveDynamicFormDraftDto
+    {
+        public string DataJson { get; set; }
+    }
+
     /// <summary>
     /// DTO for bulk creating dynamic forms.
     /// </summary>

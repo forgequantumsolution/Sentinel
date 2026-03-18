@@ -18,17 +18,20 @@ namespace Controllers
     {
         private readonly IDynamicFormRepository _formRepository;
         private readonly IDynamicFormSubmissionRepository _submissionRepository;
+        private readonly IDynamicFormDraftRepository _draftRepository;
         private readonly IBulkUploadService _bulkUploadService;
         private readonly Infrastructure.Persistence.AppDbContext _context;
 
         public DynamicFormsController(
             IDynamicFormRepository formRepository,
             IDynamicFormSubmissionRepository submissionRepository,
+            IDynamicFormDraftRepository draftRepository,
             IBulkUploadService bulkUploadService,
             Infrastructure.Persistence.AppDbContext context)
         {
             _formRepository = formRepository;
             _submissionRepository = submissionRepository;
+            _draftRepository = draftRepository;
             _bulkUploadService = bulkUploadService;
             _context = context;
         }
@@ -418,7 +421,110 @@ namespace Controllers
             return NoContent();
         }
 
+        /// <summary>
+        /// Get the current user's draft for a specific form, if one exists.
+        /// </summary>
+        [HttpGet("{formId}/draft")]
+        public async Task<IActionResult> GetDraft(Guid formId)
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null) return Unauthorized();
+
+            var draft = await _draftRepository.GetByFormAndUserAsync(formId, userId.Value);
+            if (draft == null || draft.IsDeleted) return NotFound();
+
+            var dto = new DynamicFormDraftDto
+            {
+                Id = draft.Id,
+                FormId = draft.FormId,
+                DataJson = draft.DataJson,
+                CreatedById = draft.CreatedById,
+                CreatedAt = draft.CreatedAt,
+                UpdatedAt = draft.UpdatedAt
+            };
+
+            return Ok(dto);
+        }
+
+        /// <summary>
+        /// Save or update the current user's draft for a specific form (upsert).
+        /// </summary>
+        [HttpPut("{formId}/draft")]
+        public async Task<IActionResult> SaveDraft(Guid formId, [FromBody] SaveDynamicFormDraftDto dto)
+        {
+            var form = await _formRepository.GetByIdAsync(formId);
+            if (form == null || form.IsDeleted || !form.IsActive)
+                return BadRequest("Form is not available.");
+
+            var userId = GetCurrentUserId();
+            if (userId == null) return Unauthorized();
+
+            var existing = await _draftRepository.GetByFormAndUserAsync(formId, userId.Value);
+
+            if (existing != null && !existing.IsDeleted)
+            {
+                existing.DataJson = dto.DataJson;
+                existing.UpdatedAt = DateTime.UtcNow;
+                await _draftRepository.UpdateAsync(existing);
+
+                var updatedDto = new DynamicFormDraftDto
+                {
+                    Id = existing.Id,
+                    FormId = existing.FormId,
+                    DataJson = existing.DataJson,
+                    CreatedById = existing.CreatedById,
+                    CreatedAt = existing.CreatedAt,
+                    UpdatedAt = existing.UpdatedAt
+                };
+                return Ok(updatedDto);
+            }
+
+            var draft = new DynamicFormDraft
+            {
+                FormId = formId,
+                DataJson = dto.DataJson,
+                CreatedById = userId,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _draftRepository.AddAsync(draft);
+
+            var resultDto = new DynamicFormDraftDto
+            {
+                Id = draft.Id,
+                FormId = draft.FormId,
+                DataJson = draft.DataJson,
+                CreatedById = draft.CreatedById,
+                CreatedAt = draft.CreatedAt,
+                UpdatedAt = draft.UpdatedAt
+            };
+
+            return Ok(resultDto);
+        }
+
+        /// <summary>
+        /// Delete the current user's draft for a specific form.
+        /// </summary>
+        [HttpDelete("{formId}/draft")]
+        public async Task<IActionResult> DeleteDraft(Guid formId)
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null) return Unauthorized();
+
+            var draft = await _draftRepository.GetByFormAndUserAsync(formId, userId.Value);
+            if (draft == null || draft.IsDeleted) return NotFound();
+
+            await _draftRepository.DeleteAsync(draft.Id);
+            return NoContent();
+        }
+
         #region Private Helper Methods
+
+        private Guid? GetCurrentUserId()
+        {
+            var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            return Guid.TryParse(claim, out var id) ? id : null;
+        }
 
         /// <summary>
         /// Parses the JSON data string into a dictionary for field mapping.
