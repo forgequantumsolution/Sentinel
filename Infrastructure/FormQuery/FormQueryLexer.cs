@@ -90,6 +90,7 @@ namespace Infrastructure.FormQuery
                     ')' => MakeToken(TokenType.RParen, ")"),
                     ';' => MakeToken(TokenType.Semicolon, ";"),
                     '"' => ReadQuotedIdentifier(),
+                    '[' => ReadBracketedIdentifier(),
                     '\'' => ReadStringLiteral(),
                     _ => null
                 };
@@ -147,6 +148,24 @@ namespace Infrastructure.FormQuery
             var token = new Token { Type = type, Value = value, Position = _pos };
             _pos += advance;
             return token;
+        }
+
+        private Token ReadBracketedIdentifier()
+        {
+            var start = _pos;
+            _pos++; // skip opening [
+            var sb = new System.Text.StringBuilder();
+            while (_pos < _input.Length)
+            {
+                if (_input[_pos] == ']')
+                {
+                    _pos++; // skip closing ]
+                    return new Token { Type = TokenType.QuotedIdentifier, Value = sb.ToString(), Position = start };
+                }
+                sb.Append(_input[_pos]);
+                _pos++;
+            }
+            throw new FormQueryException($"Unterminated bracketed identifier starting at position {start}");
         }
 
         private Token ReadQuotedIdentifier()

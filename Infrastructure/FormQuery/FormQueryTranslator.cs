@@ -66,8 +66,8 @@ namespace Infrastructure.FormQuery
             {
                 if (item.Expr is StarExpr)
                 {
-                    // Select all fields
-                    foreach (var field in schema.Fields.Values)
+                    // Select all fields — deduplicate because schema.Fields indexes by both FieldName and ColumnName
+                    foreach (var field in schema.Fields.Values.DistinctBy(f => f.FieldDefinitionId))
                     {
                         selectParts.Add($"{PivotExpression(field, schema)} AS \"{field.FieldName}\"");
                     }
@@ -157,7 +157,7 @@ namespace Infrastructure.FormQuery
 
                 // If no specific fields referenced, include all
                 if (fieldsForForm.Count == 0)
-                    fieldsForForm = schema.Fields.Values.ToList();
+                    fieldsForForm = schema.Fields.Values.DistinctBy(f => f.FieldDefinitionId).ToList();
 
                 var cteSb = new StringBuilder();
                 var formIdParam = AddParameter(schema.FormId);
@@ -195,7 +195,7 @@ namespace Infrastructure.FormQuery
                     if (targetAlias != null)
                     {
                         var schema = ResolveSchemaByAlias(targetAlias, formRefs);
-                        foreach (var field in schema.Fields.Values)
+                        foreach (var field in schema.Fields.Values.DistinctBy(f => f.FieldDefinitionId))
                             selectParts.Add($"\"{targetAlias}\".\"{field.FieldName}\"");
                     }
                     else
@@ -204,7 +204,7 @@ namespace Infrastructure.FormQuery
                         foreach (var (formName, formAlias) in formRefs)
                         {
                             var schema = ResolveSchema(formName);
-                            foreach (var field in schema.Fields.Values)
+                            foreach (var field in schema.Fields.Values.DistinctBy(f => f.FieldDefinitionId))
                                 selectParts.Add($"\"{formAlias}\".\"{field.FieldName}\"");
                         }
                     }
@@ -507,11 +507,12 @@ namespace Infrastructure.FormQuery
             CollectFieldsFromExpressions(query, alias, fields);
 
             if (fields.Count == 0)
-                return schema.Fields.Values.ToList();
+                return schema.Fields.Values.DistinctBy(f => f.FieldDefinitionId).ToList();
 
             return fields
                 .Where(f => schema.Fields.ContainsKey(f))
                 .Select(f => schema.Fields[f])
+                .DistinctBy(f => f.FieldDefinitionId)
                 .ToList();
         }
 
