@@ -33,7 +33,7 @@ namespace Infrastructure.Persistence.Repositories
             var query = _context.GraphConfigs
                 .Include(g => g.CreatedBy)
                 .Include(g => g.Organization)
-                .Where(g => !g.IsDeleted)
+                .Where(g => !g.IsDeleted && g.ComponentType == null)
                 .OrderByDescending(g => g.CreatedAt);
 
             var totalCount = await query.CountAsync();
@@ -57,6 +57,29 @@ namespace Infrastructure.Persistence.Repositories
                 .Include(g => g.CreatedBy)
                 .Include(g => g.Organization)
                 .Where(g => g.Type == type && !g.IsDeleted)
+                .OrderByDescending(g => g.CreatedAt);
+
+            var totalCount = await query.CountAsync();
+            var items = await query
+                .Skip(pageRequest.Skip)
+                .Take(pageRequest.PageSize)
+                .ToListAsync();
+
+            return new PagedResult<GraphConfigEntity>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = pageRequest.Page,
+                PageSize = pageRequest.PageSize
+            };
+        }
+
+        public async Task<PagedResult<GraphConfigEntity>> GetByComponentTypeAsync(Core.Enums.UiComponentType componentType, PageRequest pageRequest)
+        {
+            var query = _context.GraphConfigs
+                .Include(g => g.CreatedBy)
+                .Include(g => g.Organization)
+                .Where(g => g.ComponentType == componentType && !g.IsDeleted)
                 .OrderByDescending(g => g.CreatedAt);
 
             var totalCount = await query.CountAsync();

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Application.DTOs;
 using Application.Common.Pagination;
@@ -228,9 +229,10 @@ namespace Application.Services
                         {
                             Id = config.Id,
                             Name = config.Name,
+                            ComponentType = config.ComponentType.HasValue ? (int)config.ComponentType.Value : null,
                             Type = (int)config.Type,
-                            View = config.View,
-                            Data = config.Data,
+                            View = ParseJsonElement(config.View),
+                            Data = ParseJsonElement(config.Data),
                             Meta = config.Meta,
                             IsActive = config.IsActive,
                             CreatedAt = config.CreatedAt,
@@ -346,6 +348,13 @@ namespace Application.Services
                 IsActive = obj.IsActive,
                 CreatedAt = obj.CreatedAt
             };
+        }
+
+        private static JsonElement? ParseJsonElement(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return null;
+            try { return JsonSerializer.Deserialize<JsonElement>(json); }
+            catch { return null; }
         }
     }
 }

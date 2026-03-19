@@ -104,9 +104,29 @@ namespace Application.DTOs
     {
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
-        public int Type { get; set; } // GraphType enum
-        public Core.Models.GraphViewConfig View { get; set; } = new();
-        public Core.Models.GraphDataConfig Data { get; set; } = new();
+
+        /// <summary>
+        /// Null = graph (see GraphType enum for Type).
+        /// Set = UI component: 1=KpiCard, 2=Table, 3=Metric, 4=DataGrid, 99=Custom.
+        /// </summary>
+        public int? ComponentType { get; set; }
+
+        /// <summary>Only meaningful when ComponentType is null.</summary>
+        public int Type { get; set; }
+
+        /// <summary>
+        /// Visual / presentation config as raw JSON.
+        /// For graphs see Core.Models.GraphViewConfig for the expected shape.
+        /// For KPI cards see Core.Models.KpiCardConfig.
+        /// </summary>
+        public System.Text.Json.JsonElement? View { get; set; }
+
+        /// <summary>
+        /// Data source config as raw JSON.
+        /// For graphs see Core.Models.GraphDataConfig / DataSourceDefinition.
+        /// </summary>
+        public System.Text.Json.JsonElement? Data { get; set; }
+
         public Dictionary<string, object>? Meta { get; set; }
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
@@ -134,9 +154,19 @@ namespace Application.DTOs
     public class CreateGraphConfigRequest
     {
         public string Name { get; set; } = string.Empty;
+
+        /// <summary>Null for graphs. Set to UiComponentType value for UI components.</summary>
+        public int? ComponentType { get; set; }
+
+        /// <summary>Only meaningful when ComponentType is null.</summary>
         public int Type { get; set; }
-        public Core.Models.GraphViewConfig View { get; set; } = new();
-        public Core.Models.GraphDataConfig Data { get; set; } = new();
+
+        /// <summary>Visual / presentation config — any JSON object.</summary>
+        public System.Text.Json.JsonElement? View { get; set; }
+
+        /// <summary>Data source config — any JSON object.</summary>
+        public System.Text.Json.JsonElement? Data { get; set; }
+
         public Dictionary<string, object>? Meta { get; set; }
         public bool IsActive { get; set; } = true;
         public Guid? ParentFolderId { get; set; }
@@ -145,9 +175,19 @@ namespace Application.DTOs
     public class UpdateGraphConfigRequest
     {
         public string Name { get; set; } = string.Empty;
+
+        /// <summary>Null for graphs. Set to UiComponentType value for UI components.</summary>
+        public int? ComponentType { get; set; }
+
+        /// <summary>Only meaningful when ComponentType is null.</summary>
         public int Type { get; set; }
-        public Core.Models.GraphViewConfig View { get; set; } = new();
-        public Core.Models.GraphDataConfig Data { get; set; } = new();
+
+        /// <summary>Visual / presentation config — any JSON object.</summary>
+        public System.Text.Json.JsonElement? View { get; set; }
+
+        /// <summary>Data source config — any JSON object.</summary>
+        public System.Text.Json.JsonElement? Data { get; set; }
+
         public Dictionary<string, object>? Meta { get; set; }
         public bool IsActive { get; set; } = true;
         public Guid? ParentFolderId { get; set; }

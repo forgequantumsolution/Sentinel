@@ -199,32 +199,34 @@ namespace Infrastructure.Persistence
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
-            // Configure GraphConfigEntity — serialize JSON as string, DB-agnostic
+            // Configure GraphConfigEntity — View/Data are opaque JSON strings stored as jsonb.
+            // The backend never parses them; it stores and returns them as-is.
             var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
             modelBuilder.Entity<GraphConfigEntity>(entity =>
             {
+                // Identity conversion: string CLR type stored verbatim in jsonb column.
                 entity.Property(e => e.View)
                     .HasColumnName("View")
                     .HasColumnType("jsonb")
                     .HasConversion(
-                        v => JsonSerializer.Serialize(v, jsonOptions),
-                        v => JsonSerializer.Deserialize<GraphViewConfig>(v, jsonOptions) ?? new(),
-                        new ValueComparer<GraphViewConfig>(
-                            (a, b) => JsonSerializer.Serialize(a, jsonOptions) == JsonSerializer.Serialize(b, jsonOptions),
-                            v => JsonSerializer.Serialize(v, jsonOptions).GetHashCode(),
-                            v => JsonSerializer.Deserialize<GraphViewConfig>(JsonSerializer.Serialize(v, jsonOptions), jsonOptions) ?? new()));
+                        v => v,
+                        v => v ?? "{}",
+                        new ValueComparer<string>(
+                            (a, b) => a == b,
+                            v => v == null ? 0 : v.GetHashCode(),
+                            v => v));
 
                 entity.Property(e => e.Data)
                     .HasColumnName("Data")
                     .HasColumnType("jsonb")
                     .HasConversion(
-                        v => JsonSerializer.Serialize(v, jsonOptions),
-                        v => JsonSerializer.Deserialize<GraphDataConfig>(v, jsonOptions) ?? new(),
-                        new ValueComparer<GraphDataConfig>(
-                            (a, b) => JsonSerializer.Serialize(a, jsonOptions) == JsonSerializer.Serialize(b, jsonOptions),
-                            v => JsonSerializer.Serialize(v, jsonOptions).GetHashCode(),
-                            v => JsonSerializer.Deserialize<GraphDataConfig>(JsonSerializer.Serialize(v, jsonOptions), jsonOptions) ?? new()));
+                        v => v,
+                        v => v ?? "{}",
+                        new ValueComparer<string>(
+                            (a, b) => a == b,
+                            v => v == null ? 0 : v.GetHashCode(),
+                            v => v));
 
                 entity.Property(e => e.Meta)
                     .HasColumnName("Meta")

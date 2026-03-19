@@ -137,6 +137,47 @@ namespace Controllers
             return NoContent();
         }
 
+        // UI component endpoints (KpiCard, Table, Metric, etc. — stored alongside graphs)
+
+        /// <summary>
+        /// Get all UI components of a given type.
+        /// type: 1=KpiCard, 2=Table, 3=Metric, 4=DataGrid, 99=Custom
+        /// </summary>
+        [HttpGet("ui-components")]
+        public async Task<IActionResult> GetUiComponents([FromQuery] int type, [FromQuery] PageRequest pageRequest)
+        {
+            if (!Enum.IsDefined(typeof(Core.Enums.UiComponentType), type))
+                return BadRequest($"Unknown component type: {type}");
+
+            var pagedResult = await _graphService.GetUiComponentsByTypeAsync((Core.Enums.UiComponentType)type, pageRequest);
+
+            return Ok(new PagedResult<GraphConfigDto>
+            {
+                Items = pagedResult.Items.Select(MapToDto),
+                TotalCount = pagedResult.TotalCount,
+                Page = pagedResult.Page,
+                PageSize = pagedResult.PageSize
+            });
+        }
+
+        /// <summary>Create a new UI component (reuses the same endpoint contract as graph configs).</summary>
+        [HttpPost("ui-components")]
+        public async Task<IActionResult> CreateUiComponent([FromBody] CreateGraphConfigRequest request)
+        {
+            if (!request.ComponentType.HasValue || !Enum.IsDefined(typeof(Core.Enums.UiComponentType), request.ComponentType.Value))
+                return BadRequest("A valid ComponentType is required for UI components.");
+
+            try
+            {
+                var component = await _graphService.CreateGraphConfigAsync(request);
+                return CreatedAtAction(nameof(GetGraphConfigById), new { id = component.Id }, MapToDto(component));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
         // Graph execution endpoints
 
         [HttpGet("configs/{id}/payload")]
@@ -173,9 +214,10 @@ namespace Controllers
         {
             Id = g.Id,
             Name = g.Name,
+            ComponentType = g.ComponentType.HasValue ? (int)g.ComponentType.Value : null,
             Type = (int)g.Type,
-            View = g.View,
-            Data = g.Data,
+            View = ParseJsonElement(g.View),
+            Data = ParseJsonElement(g.Data),
             Meta = g.Meta,
             IsActive = g.IsActive,
             CreatedAt = g.CreatedAt,
@@ -183,6 +225,13 @@ namespace Controllers
             CreatedById = g.CreatedById,
             OrganizationId = g.OrganizationId
         };
+
+        private static System.Text.Json.JsonElement? ParseJsonElement(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return null;
+            try { return System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(json); }
+            catch { return null; }
+        }
 
         private static GraphDataDefinitionDto MapToDataDefDto(GraphDataDefinitionEntity d) => new()
         {

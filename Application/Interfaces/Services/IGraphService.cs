@@ -25,6 +25,9 @@ namespace Application.Interfaces.Services
         Task DeleteGraphDataDefinitionAsync(Guid id);
         Task DeleteGraphDataDefinitionsByGraphConfigIdAsync(Guid graphConfigId);
 
+        // UI component operations (non-graph components stored in the same table)
+        Task<PagedResult<GraphConfigEntity>> GetUiComponentsByTypeAsync(Core.Enums.UiComponentType componentType, PageRequest pageRequest);
+
         // Combined operations
         Task<GraphPayload> GetGraphPayloadAsync(Guid graphConfigId);
         Task<GraphPayload> ExecuteGraphAsync(Guid graphConfigId, Dictionary<string, object>? parameters = null);

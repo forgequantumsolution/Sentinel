@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Core.Entities;
 using Core.Enums;
 using Core.Models;
@@ -47,8 +48,9 @@ namespace Application.Services
 
         public async Task<GraphConfigEntity> CreateGraphConfigAsync(CreateGraphConfigRequest request)
         {
-            ActionObject? actionObject = null;
+            var isUiComponent = request.ComponentType.HasValue;
 
+            ActionObject? actionObject = null;
             if (request.ParentFolderId.HasValue)
             {
                 var folder = await _actionObjectRepository.GetByIdAsync(request.ParentFolderId.Value);
@@ -58,7 +60,7 @@ namespace Application.Services
                 actionObject = new ActionObject
                 {
                     Name = request.Name,
-                    ObjectType = ObjectType.Graph,
+                    ObjectType = isUiComponent ? ObjectType.UIComponent : ObjectType.Graph,
                     ParentObjectId = request.ParentFolderId.Value,
                     CreatedAt = DateTime.UtcNow
                 };
@@ -68,9 +70,12 @@ namespace Application.Services
             var graphConfig = new GraphConfigEntity
             {
                 Name = request.Name,
+                ComponentType = request.ComponentType.HasValue
+                    ? (UiComponentType)request.ComponentType.Value
+                    : null,
                 Type = (GraphType)request.Type,
-                View = request.View,
-                Data = request.Data,
+                View = request.View.HasValue ? request.View.Value.GetRawText() : "{}",
+                Data = request.Data.HasValue ? request.Data.Value.GetRawText() : "{}",
                 Meta = request.Meta,
                 IsActive = request.IsActive,
                 ActionObjectId = actionObject?.Id,
@@ -87,10 +92,15 @@ namespace Application.Services
             if (graphConfig == null)
                 throw new KeyNotFoundException($"GraphConfig with id {id} not found");
 
+            var isUiComponent = request.ComponentType.HasValue;
+
             graphConfig.Name = request.Name;
+            graphConfig.ComponentType = request.ComponentType.HasValue
+                ? (UiComponentType)request.ComponentType.Value
+                : null;
             graphConfig.Type = (GraphType)request.Type;
-            graphConfig.View = request.View;
-            graphConfig.Data = request.Data;
+            graphConfig.View = request.View.HasValue ? request.View.Value.GetRawText() : "{}";
+            graphConfig.Data = request.Data.HasValue ? request.Data.Value.GetRawText() : "{}";
             graphConfig.Meta = request.Meta;
             graphConfig.IsActive = request.IsActive;
             graphConfig.UpdatedAt = DateTime.UtcNow;
@@ -116,7 +126,7 @@ namespace Application.Services
                     var ao = new ActionObject
                     {
                         Name = request.Name,
-                        ObjectType = ObjectType.Graph,
+                        ObjectType = isUiComponent ? ObjectType.UIComponent : ObjectType.Graph,
                         ParentObjectId = request.ParentFolderId.Value,
                         CreatedAt = DateTime.UtcNow
                     };
@@ -126,6 +136,11 @@ namespace Application.Services
             }
 
             await _graphConfigRepository.UpdateAsync(graphConfig);
+        }
+
+        public async Task<PagedResult<GraphConfigEntity>> GetUiComponentsByTypeAsync(UiComponentType componentType, PageRequest pageRequest)
+        {
+            return await _graphConfigRepository.GetByComponentTypeAsync(componentType, pageRequest);
         }
 
         public async Task DeleteGraphConfigAsync(Guid id)
@@ -210,8 +225,9 @@ namespace Application.Services
             {
                 Id = graphConfig.Id.ToString(),
                 Type = graphConfig.Type,
-                View = graphConfig.View,
-                Data = graphConfig.Data,
+                ComponentType = graphConfig.ComponentType.HasValue ? (int)graphConfig.ComponentType.Value : null,
+                View = ParseJsonElement(graphConfig.View),
+                Data = ParseJsonElement(graphConfig.Data),
                 Meta = graphConfig.Meta
             };
 
@@ -230,8 +246,15 @@ namespace Application.Services
             // 2. Execute the query based on the data source type
             // 3. Transform the results into the graph data format
             // 4. Return the complete graph payload with actual data
-            
+
             return await GetGraphPayloadAsync(graphConfigId);
+        }
+
+        private static JsonElement? ParseJsonElement(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return null;
+            try { return JsonSerializer.Deserialize<JsonElement>(json); }
+            catch { return null; }
         }
     }
 }
