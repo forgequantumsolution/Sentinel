@@ -19,6 +19,10 @@ namespace Core.Entities
         [Required]
         [MaxLength(255)]
         public string FieldName { get; set; } // e.g., "First Name", "Age", "Date of Birth"
+        
+        [Required]
+        [MaxLength(255)]
+        public string FieldId { get; set; } // e.g., "field_1773914526177_em4ewu"
 
         [Required]
         [MaxLength(50)]

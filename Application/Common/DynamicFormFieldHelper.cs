@@ -35,6 +35,7 @@ namespace Application.Common
                 {
                     ColumnName = $"Field{index + 1}",
                     FieldName = fd.FieldName,
+                    FieldId = fd.FieldId,
                     FieldType = fd.FieldType,
                     IsRequired = fd.IsRequired,
                     ValidationRules = fd.ValidationRules,

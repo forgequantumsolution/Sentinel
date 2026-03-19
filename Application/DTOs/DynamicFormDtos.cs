@@ -16,6 +16,7 @@ namespace Application.DTOs
     public class CreateDynamicFormFieldDefinitionDto
     {
         public string FieldName { get; set; }
+        public string FieldId { get; set; }
         public string FieldType { get; set; }
         public bool IsRequired { get; set; }
         public string? ValidationRules { get; set; }
@@ -42,11 +43,13 @@ namespace Application.DTOs
     public class CreateDynamicFormSubmissionDto
     {
         public string DataJson { get; set; }
+        public string FieldValues { get; set; }
     }
 
     public class UpdateDynamicFormSubmissionDto
     {
         public string DataJson { get; set; }
+        public string FieldValues { get; set; }
     }
 
     public class DynamicFormDraftDto

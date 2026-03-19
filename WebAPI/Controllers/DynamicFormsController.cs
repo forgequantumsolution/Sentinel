@@ -94,8 +94,7 @@ namespace Controllers
 
             try
             {
-                var fieldDefinitions = DynamicFormFieldHelper.ValidateAndMapFieldDefinitions(
-                    dto.FieldDefinitions);
+                var fieldDefinitions = DynamicFormFieldHelper.ValidateAndMapFieldDefinitions(dto.FieldDefinitions);
 
                 var form = new DynamicForm
                 {
@@ -236,7 +235,7 @@ namespace Controllers
             // Dynamically populate columns in DynamicFormRecord
             try
             {
-                var dataDict = ParseDataJson(dto.DataJson);
+                var dataDict = ParseDataJson(dto.FieldValues);
 
                 if (dataDict != null && form.FieldDefinitions != null)
                 {
@@ -547,7 +546,7 @@ namespace Controllers
             {
                 // Match either FieldName or ColumnName from incoming JSON
                 System.Text.Json.JsonElement jsonElement;
-                bool found = dataDict.TryGetValue(fieldDef.FieldName, out jsonElement) || 
+                bool found = dataDict.TryGetValue(fieldDef.FieldId, out jsonElement) || 
                              dataDict.TryGetValue(fieldDef.ColumnName, out jsonElement);
 
                 if (found)
@@ -580,7 +579,7 @@ namespace Controllers
             foreach (var fieldDef in fieldDefinitions)
             {
                 System.Text.Json.JsonElement jsonElement;
-                bool found = dataDict.TryGetValue(fieldDef.FieldName, out jsonElement) ||
+                bool found = dataDict.TryGetValue(fieldDef.FieldId, out jsonElement) ||
                              dataDict.TryGetValue(fieldDef.ColumnName, out jsonElement);
 
                 if (found)

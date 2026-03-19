@@ -54,8 +54,29 @@ public class DataSourceDefinition
     public bool HasHeader { get; set; } = true;
     public char Delimiter { get; set; } = ',';
 
-    // InMemory — resolved at runtime by a named provider
-    public string? ProviderName { get; set; }
+    // DynamicForm — pull data from EAV form submissions
+    public DynamicFormSourceConfig? DynamicForm { get; set; }
+}
+
+// ─── Dynamic Form Source Config ───────────────────────────────────────────────
+
+/// <summary>
+/// Configuration for sourcing data from EAV dynamic form submissions via FormQueryEngine.
+/// Write a FormQuery SQL statement (SELECT ... FROM FormName WHERE ...) and it will be
+/// executed by FormQueryEngine — field names in SeriesCalculation map to the result columns.
+/// </summary>
+public class DynamicFormSourceConfig
+{
+    /// <summary>
+    /// FormQuery SQL statement passed directly to FormQueryEngine.
+    /// e.g. "SELECT month, SUM(revenue) AS total FROM SalesForm GROUP BY month"
+    /// </summary>
+    public string FormQuerySql { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Optional named parameters referenced in the FormQuery SQL (e.g. @startDate).
+    /// </summary>
+    public Dictionary<string, object>? Parameters { get; set; }
 }
 
 // ─── Series Calculation ───────────────────────────────────────────────────────
