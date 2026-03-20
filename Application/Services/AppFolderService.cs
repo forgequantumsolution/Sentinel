@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using Application.DTOs;
 using Application.Common.Pagination;
@@ -13,13 +12,16 @@ namespace Application.Services
     {
         private readonly IActionObjectRepository _repository;
         private readonly IGraphConfigRepository _graphConfigRepository;
+        private readonly IGraphService _graphService;
 
         public AppFolderService(
             IActionObjectRepository repository,
-            IGraphConfigRepository graphConfigRepository)
+            IGraphConfigRepository graphConfigRepository,
+            IGraphService graphService)
         {
             _repository = repository;
             _graphConfigRepository = graphConfigRepository;
+            _graphService = graphService;
         }
 
         public async Task<AppFolderDto?> GetByIdAsync(Guid id)
@@ -225,15 +227,18 @@ namespace Application.Services
                 {
                     if (graphLookup.TryGetValue(dto.Id, out var config))
                     {
+                        // Execute data source if exists, fallback to static Data JSON
+                        var payload = await _graphService.GetGraphPayloadAsync(config.Id);
+
                         dto.Data = new GraphConfigDto
                         {
                             Id = config.Id,
                             Name = config.Name,
-                            ComponentType = config.ComponentType.HasValue ? (int)config.ComponentType.Value : null,
-                            Type = (int)config.Type,
-                            View = ParseJsonElement(config.View),
-                            Data = ParseJsonElement(config.Data),
-                            Meta = config.Meta,
+                            ComponentType = payload.ComponentType,
+                            Type = (int)payload.Type,
+                            View = payload.View,
+                            Data = payload.Data,
+                            Meta = payload.Meta,
                             IsActive = config.IsActive,
                             CreatedAt = config.CreatedAt,
                             UpdatedAt = config.UpdatedAt,
@@ -350,11 +355,5 @@ namespace Application.Services
             };
         }
 
-        private static JsonElement? ParseJsonElement(string? json)
-        {
-            if (string.IsNullOrWhiteSpace(json)) return null;
-            try { return JsonSerializer.Deserialize<JsonElement>(json); }
-            catch { return null; }
-        }
     }
 }

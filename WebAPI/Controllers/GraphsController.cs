@@ -195,11 +195,11 @@ namespace Controllers
         }
 
         [HttpPost("configs/{id}/execute")]
-        public async Task<IActionResult> ExecuteGraph(Guid id, [FromBody] Dictionary<string, object>? parameters = null)
+        public async Task<IActionResult> ExecuteGraph(Guid id, [FromBody] GraphExecuteRequest? request = null)
         {
             try
             {
-                var payload = await _graphService.ExecuteGraphAsync(id, parameters);
+                var payload = await _graphService.ExecuteGraphAsync(id, request);
                 return Ok(payload);
             }
             catch (KeyNotFoundException)

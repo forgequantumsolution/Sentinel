@@ -4,6 +4,8 @@ using Core.Enums;
 using Core.Models;
 using Application.DTOs;
 using Application.Common.Pagination;
+using Application.FormQuery;
+using Application.Interfaces;
 using Application.Interfaces.Persistence;
 using Application.Interfaces.Services;
 
@@ -14,15 +16,21 @@ namespace Application.Services
         private readonly IGraphConfigRepository _graphConfigRepository;
         private readonly IGraphDataDefinitionRepository _graphDataDefinitionRepository;
         private readonly IActionObjectRepository _actionObjectRepository;
+        private readonly IFormQueryEngine _formQueryEngine;
+        private readonly ITenantContext _tenantContext;
 
         public GraphService(
             IGraphConfigRepository graphConfigRepository,
             IGraphDataDefinitionRepository graphDataDefinitionRepository,
-            IActionObjectRepository actionObjectRepository)
+            IActionObjectRepository actionObjectRepository,
+            IFormQueryEngine formQueryEngine,
+            ITenantContext tenantContext)
         {
             _graphConfigRepository = graphConfigRepository;
             _graphDataDefinitionRepository = graphDataDefinitionRepository;
             _actionObjectRepository = actionObjectRepository;
+            _formQueryEngine = formQueryEngine;
+            _tenantContext = tenantContext;
         }
 
         // GraphConfig operations
@@ -173,10 +181,11 @@ namespace Application.Services
             {
                 GraphConfigId = request.GraphConfigId,
                 Source = request.Source,
-                SeriesCalculations = request.SeriesCalculations,
-                GlobalFilter = request.GlobalFilter,
-                SortRules = request.SortRules,
-                RowLimit = request.RowLimit,
+                // TODO: will add once functionality is developed
+                // SeriesCalculations = request.SeriesCalculations,
+                // GlobalFilter = request.GlobalFilter,
+                // SortRules = request.SortRules,
+                // RowLimit = request.RowLimit,
                 IsActive = request.IsActive,
                 CreatedAt = DateTime.UtcNow
             };
@@ -192,10 +201,11 @@ namespace Application.Services
                 throw new KeyNotFoundException($"GraphDataDefinition with id {id} not found");
 
             graphDataDefinition.Source = request.Source;
-            graphDataDefinition.SeriesCalculations = request.SeriesCalculations;
-            graphDataDefinition.GlobalFilter = request.GlobalFilter;
-            graphDataDefinition.SortRules = request.SortRules;
-            graphDataDefinition.RowLimit = request.RowLimit;
+            // TODO: will add once functionality is developed
+            // graphDataDefinition.SeriesCalculations = request.SeriesCalculations;
+            // graphDataDefinition.GlobalFilter = request.GlobalFilter;
+            // graphDataDefinition.SortRules = request.SortRules;
+            // graphDataDefinition.RowLimit = request.RowLimit;
             graphDataDefinition.IsActive = request.IsActive;
             graphDataDefinition.UpdatedAt = DateTime.UtcNow;
 
@@ -215,11 +225,18 @@ namespace Application.Services
         // Combined operations
         public async Task<GraphPayload> GetGraphPayloadAsync(Guid graphConfigId)
         {
+            // Delegate to ExecuteGraphAsync with no runtime overrides —
+            // if a data source exists it will be executed, otherwise falls back to static Data JSON.
+            return await ExecuteGraphAsync(graphConfigId, null);
+        }
+
+        public async Task<GraphPayload> ExecuteGraphAsync(Guid graphConfigId, GraphExecuteRequest? request = null)
+        {
             var graphConfig = await _graphConfigRepository.GetByIdAsync(graphConfigId);
             if (graphConfig == null)
                 throw new KeyNotFoundException($"GraphConfig with id {graphConfigId} not found");
 
-            var graphDataDefinition = await _graphDataDefinitionRepository.GetByGraphConfigIdAsync(graphConfigId);
+            var dataDef = await _graphDataDefinitionRepository.GetByGraphConfigIdAsync(graphConfigId);
 
             var payload = new GraphPayload
             {
@@ -227,27 +244,410 @@ namespace Application.Services
                 Type = graphConfig.Type,
                 ComponentType = graphConfig.ComponentType.HasValue ? (int)graphConfig.ComponentType.Value : null,
                 View = ParseJsonElement(graphConfig.View),
-                Data = ParseJsonElement(graphConfig.Data),
                 Meta = graphConfig.Meta
             };
 
-            // If we have a data definition, we could merge or enhance the payload
-            // For now, just return the basic payload
+            if (dataDef == null)
+            {
+                payload.Data = ParseJsonElement(graphConfig.Data);
+                return payload;
+            }
+
+            // Merge FE filters with saved GlobalFilter
+            var effectiveFilter = MergeFilters(dataDef.GlobalFilter, request?.Filters);
+            var effectiveSortRules = request?.SortRules ?? dataDef.SortRules;
+            var effectiveRowLimit = request?.RowLimit ?? dataDef.RowLimit;
+
+            // Execute based on data source type
+            FormQueryResult? queryResult = null;
+
+            if (dataDef.Source.Type == DataSourceType.DynamicForm && dataDef.Source.DynamicForm != null)
+            {
+                // Merge saved parameters with runtime parameters (runtime wins)
+                var effectiveParams = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+                if (dataDef.Source.DynamicForm.Parameters != null)
+                    foreach (var kv in dataDef.Source.DynamicForm.Parameters)
+                        effectiveParams[kv.Key] = kv.Value;
+                if (request?.Parameters != null)
+                    foreach (var kv in request.Parameters)
+                        effectiveParams[kv.Key] = kv.Value;
+
+                // Substitute @parameters into the SQL as string literals
+                var baseSql = dataDef.Source.DynamicForm.FormQuerySql;
+                baseSql = SubstituteParameters(baseSql, effectiveParams);
+
+                var sql = BuildDynamicFormSql(baseSql, effectiveFilter, effectiveSortRules, effectiveRowLimit);
+
+                var formRequest = new FormQueryRequest { Sql = sql };
+                queryResult = await _formQueryEngine.ExecuteAsync(formRequest, _tenantContext.OrganizationId);
+            }
+            else if (dataDef.Source.Type == DataSourceType.SqlQuery && dataDef.Source.Sql != null && !string.IsNullOrWhiteSpace(dataDef.Source.Sql.Query))
+            {
+                var sql = dataDef.Source.Sql.Query;
+                var formRequest = new FormQueryRequest { Sql = sql };
+                queryResult = await _formQueryEngine.ExecuteAsync(formRequest, _tenantContext.OrganizationId);
+            }
+
+            if (queryResult != null)
+            {
+                var graphData = TransformToGraphData(queryResult, dataDef.SeriesCalculations);
+                AssignSeriesColors(graphData, graphConfig.Data);
+                payload.Data = JsonSerializer.SerializeToElement(graphData);
+            }
+            else
+            {
+                payload.Data = ParseJsonElement(graphConfig.Data);
+            }
 
             return payload;
         }
 
-        public async Task<GraphPayload> ExecuteGraphAsync(Guid graphConfigId, Dictionary<string, object>? parameters = null)
+        /// <summary>
+        /// Merges saved GlobalFilter with runtime FE filters using AND.
+        /// </summary>
+        private static FilterGroup? MergeFilters(FilterGroup? saved, FilterGroup? runtime)
         {
-            // This would execute the graph query based on the data definition
-            // For now, just return the payload without executing the query
-            // In a real implementation, this would:
-            // 1. Get the graph config and data definition
-            // 2. Execute the query based on the data source type
-            // 3. Transform the results into the graph data format
-            // 4. Return the complete graph payload with actual data
+            if (runtime == null) return saved;
+            if (saved == null) return runtime;
 
-            return await GetGraphPayloadAsync(graphConfigId);
+            return new FilterGroup
+            {
+                Join = JoinOperator.And,
+                Rules = new List<FilterRule>(),
+                SubGroups = new List<FilterGroup> { saved, runtime }
+            };
+        }
+
+        /// <summary>
+        /// Replaces @-prefixed parameter placeholders with their quoted string values
+        /// so the FormQueryEngine (which doesn't support named params) can parse the SQL.
+        /// </summary>
+        private static string SubstituteParameters(string sql, Dictionary<string, object> parameters)
+        {
+            foreach (var kv in parameters.OrderByDescending(k => k.Key.Length))
+            {
+                var key = kv.Key.StartsWith('@') ? kv.Key : $"@{kv.Key}";
+                var value = $"'{kv.Value?.ToString()?.Replace("'", "''") ?? ""}'";
+                sql = sql.Replace(key, value, StringComparison.OrdinalIgnoreCase);
+            }
+            return sql;
+        }
+
+        /// <summary>
+        /// Appends WHERE / ORDER BY / LIMIT clauses to the base FormQuery SQL
+        /// based on the effective filter, sort, and limit.
+        /// </summary>
+        private static string BuildDynamicFormSql(
+            string baseSql,
+            FilterGroup? filter,
+            List<SortRule>? sortRules,
+            int? rowLimit)
+        {
+            // Wrap the base query so we can layer on runtime clauses
+            var sql = baseSql.TrimEnd().TrimEnd(';');
+
+            var whereClauses = new List<string>();
+            if (filter != null)
+            {
+                var clause = BuildFilterClause(filter);
+                if (!string.IsNullOrWhiteSpace(clause))
+                    whereClauses.Add(clause);
+            }
+
+            // If the base SQL already has WHERE, we wrap it as a subquery
+            if (whereClauses.Count > 0)
+            {
+                var hasWhere = sql.Contains(" WHERE ", StringComparison.OrdinalIgnoreCase);
+                if (hasWhere)
+                {
+                    sql = $"SELECT * FROM ({sql}) AS _filtered WHERE {string.Join(" AND ", whereClauses)}";
+                }
+                else
+                {
+                    sql += $" WHERE {string.Join(" AND ", whereClauses)}";
+                }
+            }
+
+            if (sortRules != null && sortRules.Count > 0)
+            {
+                var orderParts = sortRules.Select(s =>
+                    $"\"{s.Field}\" {(s.Direction == SortDirection.Desc ? "DESC" : "ASC")}");
+                sql += $" ORDER BY {string.Join(", ", orderParts)}";
+            }
+
+            if (rowLimit.HasValue && rowLimit.Value > 0)
+            {
+                sql += $" LIMIT {rowLimit.Value}";
+            }
+
+            return sql;
+        }
+
+        private static string BuildFilterClause(FilterGroup group)
+        {
+            var parts = new List<string>();
+
+            foreach (var rule in group.Rules)
+            {
+                var clause = BuildRuleClause(rule);
+                if (!string.IsNullOrWhiteSpace(clause))
+                    parts.Add(clause);
+            }
+
+            if (group.SubGroups != null)
+            {
+                foreach (var sub in group.SubGroups)
+                {
+                    var clause = BuildFilterClause(sub);
+                    if (!string.IsNullOrWhiteSpace(clause))
+                        parts.Add($"({clause})");
+                }
+            }
+
+            if (parts.Count == 0) return string.Empty;
+
+            var joiner = group.Join == JoinOperator.Or ? " OR " : " AND ";
+            return string.Join(joiner, parts);
+        }
+
+        private static string BuildRuleClause(FilterRule rule)
+        {
+            var field = $"\"{rule.Field}\"";
+            var value = rule.Value is string s ? $"'{s.Replace("'", "''")}'" : rule.Value?.ToString() ?? "NULL";
+
+            return rule.Operator switch
+            {
+                FilterOperator.Eq => $"{field} = {value}",
+                FilterOperator.NotEq => $"{field} != {value}",
+                FilterOperator.Gt => $"{field} > {value}",
+                FilterOperator.Gte => $"{field} >= {value}",
+                FilterOperator.Lt => $"{field} < {value}",
+                FilterOperator.Lte => $"{field} <= {value}",
+                FilterOperator.Like => $"{field} LIKE {value}",
+                FilterOperator.IsNull => $"{field} IS NULL",
+                FilterOperator.IsNotNull => $"{field} IS NOT NULL",
+                FilterOperator.In when rule.Values != null =>
+                    $"{field} IN ({string.Join(", ", rule.Values.Select(v => v is string sv ? $"'{sv.Replace("'", "''")}'" : v?.ToString() ?? "NULL"))})",
+                FilterOperator.NotIn when rule.Values != null =>
+                    $"{field} NOT IN ({string.Join(", ", rule.Values.Select(v => v is string sv ? $"'{sv.Replace("'", "''")}'" : v?.ToString() ?? "NULL"))})",
+                _ => string.Empty
+            };
+        }
+
+        /// <summary>
+        /// Transforms tabular query results into GraphDataConfig using series calculations.
+        /// </summary>
+        private static GraphDataConfig TransformToGraphData(FormQueryResult result, List<SeriesCalculation> seriesCalcs)
+        {
+            var graphData = new GraphDataConfig();
+
+            if (seriesCalcs.Count == 0 || result.Rows.Count == 0)
+            {
+                // No series defined — return raw rows as a single series
+                if (result.Rows.Count > 0 && result.Columns.Count >= 2)
+                {
+                    var xCol = result.Columns[0];
+                    var yCol = result.Columns[1];
+                    graphData.Labels = result.Rows.Select(r => r[xCol]?.ToString() ?? "").ToList();
+                    graphData.Series.Add(new GraphSeries
+                    {
+                        Name = yCol,
+                        Points = result.Rows.Select(r => new DataPoint
+                        {
+                            X = r[xCol],
+                            Y = r[yCol] ?? 0
+                        }).ToList()
+                    });
+                }
+                return graphData;
+            }
+
+            foreach (var calc in seriesCalcs)
+            {
+                var rows = result.Rows.AsEnumerable();
+
+                // Apply series-level filter
+                if (calc.SeriesFilter != null)
+                    rows = rows.Where(r => EvaluateFilter(r, calc.SeriesFilter));
+
+                var rowList = rows.ToList();
+
+                var series = new GraphSeries { Name = calc.SeriesName };
+
+                if (calc.GroupByFields != null && calc.GroupByFields.Count > 0)
+                {
+                    // Group and aggregate
+                    var groups = rowList.GroupBy(r =>
+                        string.Join("|", calc.GroupByFields.Select(f => r.GetValueOrDefault(f)?.ToString() ?? "")));
+
+                    foreach (var group in groups)
+                    {
+                        var xValue = GetFieldValue(group.First(), calc.XField);
+                        var yValue = AggregateField(group, calc.YField);
+
+                        var point = new DataPoint { X = xValue, Y = yValue };
+                        if (calc.ZField != null)
+                            point.Z = AggregateField(group, calc.ZField);
+
+                        series.Points.Add(point);
+                    }
+                }
+                else
+                {
+                    // No grouping — map rows directly
+                    foreach (var row in rowList)
+                    {
+                        var point = new DataPoint
+                        {
+                            X = GetFieldValue(row, calc.XField),
+                            Y = GetFieldValue(row, calc.YField) ?? 0
+                        };
+                        if (calc.ZField != null)
+                            point.Z = GetFieldValue(row, calc.ZField);
+
+                        series.Points.Add(point);
+                    }
+                }
+
+                // Extract labels from X values
+                if (graphData.Labels.Count == 0)
+                    graphData.Labels = series.Points.Select(p => p.X?.ToString() ?? "").ToList();
+
+                graphData.Series.Add(series);
+            }
+
+            return graphData;
+        }
+
+        private static readonly string[] DefaultColors = new[]
+        {
+            "#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F",
+            "#EDC948", "#B07AA1", "#FF9DA7", "#9C755F", "#BAB0AC"
+        };
+
+        /// <summary>
+        /// Assigns colors to series: first from graphConfig.Data JSON (looks for Series[].Color
+        /// or a Colors array), then falls back to a default palette.
+        /// </summary>
+        private static void AssignSeriesColors(GraphDataConfig graphData, string? configDataJson)
+        {
+            // Try to extract colors from the saved graphConfig.Data JSON
+            var configColors = new List<string>();
+            if (!string.IsNullOrWhiteSpace(configDataJson))
+            {
+                try
+                {
+                    var dataEl = JsonSerializer.Deserialize<JsonElement>(configDataJson);
+
+                    // Check for a top-level "Colors" array
+                    if (dataEl.TryGetProperty("Colors", out var colorsEl) ||
+                        dataEl.TryGetProperty("colors", out colorsEl))
+                    {
+                        if (colorsEl.ValueKind == JsonValueKind.Array)
+                            foreach (var c in colorsEl.EnumerateArray())
+                                if (c.ValueKind == JsonValueKind.String)
+                                    configColors.Add(c.GetString()!);
+                    }
+
+                    // Check for colors inside a "Series" array
+                    if (configColors.Count == 0 &&
+                        (dataEl.TryGetProperty("Series", out var seriesEl) ||
+                         dataEl.TryGetProperty("series", out seriesEl)) &&
+                        seriesEl.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var s in seriesEl.EnumerateArray())
+                        {
+                            if ((s.TryGetProperty("Color", out var colorEl) ||
+                                 s.TryGetProperty("color", out colorEl)) &&
+                                colorEl.ValueKind == JsonValueKind.String)
+                                configColors.Add(colorEl.GetString()!);
+                        }
+                    }
+                }
+                catch { /* ignore malformed JSON */ }
+            }
+
+            for (int i = 0; i < graphData.Series.Count; i++)
+            {
+                if (string.IsNullOrEmpty(graphData.Series[i].Color))
+                {
+                    graphData.Series[i].Color = i < configColors.Count
+                        ? configColors[i]
+                        : DefaultColors[i % DefaultColors.Length];
+                }
+            }
+        }
+
+        private static object? GetFieldValue(Dictionary<string, object?> row, FieldMapping field)
+        {
+            if (field.StaticValue != null) return field.StaticValue;
+            return row.GetValueOrDefault(field.FieldName);
+        }
+
+        private static object AggregateField(IGrouping<string, Dictionary<string, object?>> group, FieldMapping field)
+        {
+            if (field.StaticValue != null) return field.StaticValue;
+
+            var values = group
+                .Select(r => r.GetValueOrDefault(field.FieldName))
+                .Where(v => v != null)
+                .ToList();
+
+            return field.Aggregation switch
+            {
+                AggregationType.Count => values.Count,
+                AggregationType.CountDistinct => values.Distinct().Count(),
+                AggregationType.Sum => values.Sum(v => Convert.ToDouble(v)),
+                AggregationType.Avg => values.Average(v => Convert.ToDouble(v)),
+                AggregationType.Min => values.Min(v => Convert.ToDouble(v)),
+                AggregationType.Max => values.Max(v => Convert.ToDouble(v)),
+                _ => values.FirstOrDefault() ?? 0
+            };
+        }
+
+        private static bool EvaluateFilter(Dictionary<string, object?> row, FilterGroup filter)
+        {
+            var ruleResults = filter.Rules.Select(r => EvaluateRule(row, r));
+            var subResults = filter.SubGroups?.Select(sg => EvaluateFilter(row, sg)) ?? Enumerable.Empty<bool>();
+            var all = ruleResults.Concat(subResults);
+
+            return filter.Join == JoinOperator.And ? all.All(b => b) : all.Any(b => b);
+        }
+
+        private static bool EvaluateRule(Dictionary<string, object?> row, FilterRule rule)
+        {
+            var fieldValue = row.GetValueOrDefault(rule.Field);
+            var compareValue = rule.Value;
+
+            return rule.Operator switch
+            {
+                FilterOperator.Eq => Equals(fieldValue?.ToString(), compareValue?.ToString()),
+                FilterOperator.NotEq => !Equals(fieldValue?.ToString(), compareValue?.ToString()),
+                FilterOperator.IsNull => fieldValue == null,
+                FilterOperator.IsNotNull => fieldValue != null,
+                FilterOperator.In when rule.Values != null =>
+                    rule.Values.Any(v => Equals(fieldValue?.ToString(), v?.ToString())),
+                FilterOperator.NotIn when rule.Values != null =>
+                    !rule.Values.Any(v => Equals(fieldValue?.ToString(), v?.ToString())),
+                FilterOperator.Gt => Compare(fieldValue, compareValue) > 0,
+                FilterOperator.Gte => Compare(fieldValue, compareValue) >= 0,
+                FilterOperator.Lt => Compare(fieldValue, compareValue) < 0,
+                FilterOperator.Lte => Compare(fieldValue, compareValue) <= 0,
+                FilterOperator.Like => fieldValue?.ToString()?.Contains(compareValue?.ToString() ?? "", StringComparison.OrdinalIgnoreCase) == true,
+                _ => true
+            };
+        }
+
+        private static int Compare(object? a, object? b)
+        {
+            if (a == null && b == null) return 0;
+            if (a == null) return -1;
+            if (b == null) return 1;
+
+            if (double.TryParse(a.ToString(), out var da) && double.TryParse(b.ToString(), out var db))
+                return da.CompareTo(db);
+
+            return string.Compare(a.ToString(), b.ToString(), StringComparison.OrdinalIgnoreCase);
         }
 
         private static JsonElement? ParseJsonElement(string? json)

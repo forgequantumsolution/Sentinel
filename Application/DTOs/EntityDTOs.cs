@@ -197,20 +197,41 @@ namespace Application.DTOs
     {
         public Guid GraphConfigId { get; set; }
         public Core.Models.DataSourceDefinition Source { get; set; } = new();
-        public List<Core.Models.SeriesCalculation> SeriesCalculations { get; set; } = new();
-        public Core.Models.FilterGroup? GlobalFilter { get; set; }
-        public List<Core.Models.SortRule>? SortRules { get; set; }
-        public int? RowLimit { get; set; }
+        // TODO: will add once functionality is developed
+        // public List<Core.Models.SeriesCalculation> SeriesCalculations { get; set; } = new();
+        // public Core.Models.FilterGroup? GlobalFilter { get; set; }
+        // public List<Core.Models.SortRule>? SortRules { get; set; }
+        // public int? RowLimit { get; set; }
         public bool IsActive { get; set; } = true;
     }
 
     public class UpdateGraphDataDefinitionRequest
     {
         public Core.Models.DataSourceDefinition Source { get; set; } = new();
-        public List<Core.Models.SeriesCalculation> SeriesCalculations { get; set; } = new();
-        public Core.Models.FilterGroup? GlobalFilter { get; set; }
-        public List<Core.Models.SortRule>? SortRules { get; set; }
-        public int? RowLimit { get; set; }
+        // TODO: will add once functionality is developed
+        // public List<Core.Models.SeriesCalculation> SeriesCalculations { get; set; } = new();
+        // public Core.Models.FilterGroup? GlobalFilter { get; set; }
+        // public List<Core.Models.SortRule>? SortRules { get; set; }
+        // public int? RowLimit { get; set; }
         public bool IsActive { get; set; } = true;
+    }
+
+    /// <summary>
+    /// Request body sent by the frontend when executing a graph.
+    /// Allows runtime filter/sort overrides on top of the saved data definition.
+    /// </summary>
+    public class GraphExecuteRequest
+    {
+        /// <summary>Additional filters applied at runtime (merged with saved GlobalFilter via AND).</summary>
+        public Core.Models.FilterGroup? Filters { get; set; }
+
+        /// <summary>Override sort rules for this execution (replaces saved SortRules when provided).</summary>
+        public List<Core.Models.SortRule>? SortRules { get; set; }
+
+        /// <summary>Override row limit for this execution.</summary>
+        public int? RowLimit { get; set; }
+
+        /// <summary>Named parameters for SQL / DynamicForm queries (e.g. @startDate).</summary>
+        public Dictionary<string, object>? Parameters { get; set; }
     }
 }

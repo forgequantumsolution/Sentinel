@@ -397,10 +397,25 @@ namespace Infrastructure.FormQuery
                 return new FunctionExpr { Name = funcName, Args = args, Distinct = distinct };
             }
 
-            // Identifier (possibly qualified: alias.field or alias.*)
+            // Identifier (possibly qualified: alias.field, alias.*, or function call)
             if (Current.Type == TokenType.Identifier || Current.Type == TokenType.QuotedIdentifier)
             {
                 var name = ParseIdentifierName();
+
+                // General function call: identifier(args...)
+                if (Check(TokenType.LParen))
+                {
+                    Advance(); // consume (
+                    var args = new List<Expression>();
+                    if (!Check(TokenType.RParen))
+                    {
+                        args.Add(ParseExpression());
+                        while (Match(TokenType.Comma))
+                            args.Add(ParseExpression());
+                    }
+                    Expect(TokenType.RParen);
+                    return new FunctionExpr { Name = name.ToUpperInvariant(), Args = args };
+                }
 
                 // Check for alias.field or alias.*
                 if (Match(TokenType.Dot))

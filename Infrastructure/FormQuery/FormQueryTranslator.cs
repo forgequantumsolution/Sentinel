@@ -246,9 +246,89 @@ namespace Infrastructure.FormQuery
             if (func.Args.Count == 1 && func.Args[0] is StarExpr)
                 return $"{func.Name}(*)";
 
+            // Translate SQL Server functions to PostgreSQL equivalents
+            var translated = TranslateFunctionToPostgres(func);
+            if (translated != null)
+                return translated;
+
             var distinct = func.Distinct ? "DISTINCT " : "";
             var args = func.Args.Select(TranslateExpression);
             return $"{func.Name}({distinct}{string.Join(", ", args)})";
+        }
+
+        /// <summary>
+        /// Converts SQL Server-style functions to PostgreSQL equivalents.
+        /// Returns null if no translation is needed.
+        /// </summary>
+        private string? TranslateFunctionToPostgres(FunctionExpr func)
+        {
+            switch (func.Name)
+            {
+                // FORMAT(date, 'pattern') → TO_CHAR(date, pg_pattern)
+                case "FORMAT" when func.Args.Count == 2:
+                    var formatExpr = TranslateExpression(func.Args[0]);
+                    var pattern = func.Args[1] is LiteralExpr lit && lit.Type == LiteralType.String
+                        ? TranslateDateFormat((string)lit.Value!)
+                        : TranslateExpression(func.Args[1]);
+                    return $"TO_CHAR({formatExpr}, {pattern})";
+
+                // ISNULL(expr, default) → COALESCE(expr, default)
+                case "ISNULL" when func.Args.Count == 2:
+                    return $"COALESCE({TranslateExpression(func.Args[0])}, {TranslateExpression(func.Args[1])})";
+
+                // LEN(str) → LENGTH(str)
+                case "LEN" when func.Args.Count == 1:
+                    return $"LENGTH({TranslateExpression(func.Args[0])})";
+
+                // GETDATE() / GETUTCDATE() → NOW() / NOW() AT TIME ZONE 'UTC'
+                case "GETDATE" when func.Args.Count == 0:
+                    return "NOW()";
+                case "GETUTCDATE" when func.Args.Count == 0:
+                    return "(NOW() AT TIME ZONE 'UTC')";
+
+                // DATEPART(part, date) → EXTRACT(part FROM date)
+                case "DATEPART" when func.Args.Count == 2:
+                    var part = func.Args[0] is FieldRefExpr partRef ? partRef.FieldName : TranslateExpression(func.Args[0]);
+                    return $"EXTRACT({part} FROM {TranslateExpression(func.Args[1])})";
+
+                // DATEDIFF(part, start, end) → EXTRACT(EPOCH FROM (end - start)) based on part
+                case "DATEDIFF" when func.Args.Count == 3:
+                    var diffPart = func.Args[0] is FieldRefExpr diffPartRef ? diffPartRef.FieldName.ToUpperInvariant() : "DAY";
+                    var startExpr = TranslateExpression(func.Args[1]);
+                    var endExpr = TranslateExpression(func.Args[2]);
+                    return diffPart switch
+                    {
+                        "SECOND" => $"EXTRACT(EPOCH FROM ({endExpr} - {startExpr}))::INTEGER",
+                        "MINUTE" => $"(EXTRACT(EPOCH FROM ({endExpr} - {startExpr})) / 60)::INTEGER",
+                        "HOUR" => $"(EXTRACT(EPOCH FROM ({endExpr} - {startExpr})) / 3600)::INTEGER",
+                        _ => $"(({endExpr}::DATE - {startExpr}::DATE))::INTEGER" // DAY default
+                    };
+
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>
+        /// Converts .NET/SQL Server date format patterns to PostgreSQL TO_CHAR patterns.
+        /// </summary>
+        private string TranslateDateFormat(string dotnetFormat)
+        {
+            var pgFormat = dotnetFormat
+                .Replace("yyyy", "YYYY")
+                .Replace("yy", "YY")
+                .Replace("MMMM", "Month")
+                .Replace("MMM", "Mon")
+                .Replace("MM", "MM")
+                .Replace("dd", "DD")
+                .Replace("HH", "HH24")
+                .Replace("hh", "HH12")
+                .Replace("mm", "MI")
+                .Replace("ss", "SS")
+                .Replace("tt", "AM");
+
+            var paramName = AddParameter(pgFormat, dedup: true);
+            return $"@{paramName}";
         }
 
         private string TranslateCase(CaseExpr caseExpr)
@@ -296,12 +376,37 @@ namespace Infrastructure.FormQuery
         {
             if (lit.Type == LiteralType.Null) return "NULL";
             if (lit.Type == LiteralType.Boolean) return (bool)lit.Value! ? "TRUE" : "FALSE";
-            var paramName = AddParameter(lit.Value!);
+
+            var paramName = AddParameter(lit.Value!, dedup: true);
+
+            // Auto-cast date-like strings so PostgreSQL can compare them with DATE/TIMESTAMP columns
+            if (lit.Type == LiteralType.String && IsDateLikeString((string)lit.Value!))
+                return $"@{paramName}::DATE";
+
             return $"@{paramName}";
         }
 
-        private string AddParameter(object value)
+        private static bool IsDateLikeString(string value)
         {
+            return DateTime.TryParse(value, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out _);
+        }
+
+        /// <summary>
+        /// Adds a SQL parameter. When dedup is true, reuses an existing parameter with the same value
+        /// so that PostgreSQL sees identical expressions in SELECT and GROUP BY as the same expression.
+        /// CTE-internal parameters (FormId, FieldDefinitionId, OrgId) use dedup=false (default)
+        /// to avoid cross-CTE conflicts.
+        /// </summary>
+        private string AddParameter(object value, bool dedup = false)
+        {
+            if (dedup)
+            {
+                var existing = _parameters.FirstOrDefault(p => Equals(p.Value, value));
+                if (existing != null)
+                    return existing.ParameterName;
+            }
+
             var name = $"p{_paramIndex++}";
             _parameters.Add(new NpgsqlParameter(name, value));
             return name;

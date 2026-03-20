@@ -37,25 +37,46 @@ public class DataSourceDefinition
 {
     public DataSourceType Type { get; set; }
 
-    // SQL / StoredProcedure
-    public string? ConnectionStringName { get; set; }  // key from config
-    public string? SqlQuery { get; set; }  // raw SQL or SP name
-    public Dictionary<string, object>? SqlParameters { get; set; }
+    public SqlSourceConfig? Sql { get; set; }
+    public RestApiSourceConfig? RestApi { get; set; }
+    public CsvSourceConfig? Csv { get; set; }
+    public DynamicFormSourceConfig? DynamicForm { get; set; }
+}
 
-    // REST API
-    public string? ApiUrl { get; set; }
-    public string? HttpMethod { get; set; } = "GET";
+// ─── SQL / StoredProcedure Source Config ──────────────────────────────────────
+
+public class SqlSourceConfig
+{
+    /// <summary>Key from appsettings ConnectionStrings section.</summary>
+    public string? ConnectionStringName { get; set; }
+
+    /// <summary>Raw SQL query or stored procedure name.</summary>
+    public string? Query { get; set; }
+
+    /// <summary>Named parameters for the query (e.g. @startDate).</summary>
+    public Dictionary<string, object>? Parameters { get; set; }
+}
+
+// ─── REST API Source Config ──────────────────────────────────────────────────
+
+public class RestApiSourceConfig
+{
+    public string? Url { get; set; }
+    public string HttpMethod { get; set; } = "GET";
     public Dictionary<string, string>? Headers { get; set; }
     public Dictionary<string, string>? QueryParams { get; set; }
-    public string? ResponseDataPath { get; set; }  // e.g. "$.data.items"
 
-    // CSV / File
+    /// <summary>JSON path to extract data from response, e.g. "$.data.items".</summary>
+    public string? ResponseDataPath { get; set; }
+}
+
+// ─── CSV / File Source Config ────────────────────────────────────────────────
+
+public class CsvSourceConfig
+{
     public string? FilePath { get; set; }
     public bool HasHeader { get; set; } = true;
     public char Delimiter { get; set; } = ',';
-
-    // DynamicForm — pull data from EAV form submissions
-    public DynamicFormSourceConfig? DynamicForm { get; set; }
 }
 
 // ─── Dynamic Form Source Config ───────────────────────────────────────────────

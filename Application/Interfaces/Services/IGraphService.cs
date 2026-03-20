@@ -30,6 +30,6 @@ namespace Application.Interfaces.Services
 
         // Combined operations
         Task<GraphPayload> GetGraphPayloadAsync(Guid graphConfigId);
-        Task<GraphPayload> ExecuteGraphAsync(Guid graphConfigId, Dictionary<string, object>? parameters = null);
+        Task<GraphPayload> ExecuteGraphAsync(Guid graphConfigId, GraphExecuteRequest? request = null);
     }
 }
