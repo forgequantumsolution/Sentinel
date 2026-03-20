@@ -219,6 +219,7 @@ namespace Controllers
             View = ParseJsonElement(g.View),
             Data = ParseJsonElement(g.Data),
             Meta = g.Meta,
+            FiltersParams = g.FiltersParams,
             IsActive = g.IsActive,
             CreatedAt = g.CreatedAt,
             UpdatedAt = g.UpdatedAt,

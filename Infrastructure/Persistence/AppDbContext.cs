@@ -238,6 +238,17 @@ namespace Infrastructure.Persistence
                             (a, b) => JsonSerializer.Serialize(a, jsonOptions) == JsonSerializer.Serialize(b, jsonOptions),
                             v => v == null ? 0 : JsonSerializer.Serialize(v, jsonOptions).GetHashCode(),
                             v => v == null ? null : JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(v, jsonOptions), jsonOptions)));
+
+                entity.Property(e => e.FiltersParams)
+                    .HasColumnName("FiltersParams")
+                    .HasColumnType("jsonb")
+                    .HasConversion(
+                        v => v == null ? null : JsonSerializer.Serialize(v, jsonOptions),
+                        v => v == null ? null : JsonSerializer.Deserialize<Dictionary<string, object>>(v, jsonOptions),
+                        new ValueComparer<Dictionary<string, object>?>(
+                            (a, b) => JsonSerializer.Serialize(a, jsonOptions) == JsonSerializer.Serialize(b, jsonOptions),
+                            v => v == null ? 0 : JsonSerializer.Serialize(v, jsonOptions).GetHashCode(),
+                            v => v == null ? null : JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(v, jsonOptions), jsonOptions)));
             });
 
             // Configure GraphDataDefinitionEntity — serialize JSON as string

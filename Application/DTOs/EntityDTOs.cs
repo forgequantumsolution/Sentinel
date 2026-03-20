@@ -128,6 +128,7 @@ namespace Application.DTOs
         public System.Text.Json.JsonElement? Data { get; set; }
 
         public Dictionary<string, object>? Meta { get; set; }
+        public Dictionary<string, object>? FiltersParams { get; set; }
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
@@ -168,6 +169,7 @@ namespace Application.DTOs
         public System.Text.Json.JsonElement? Data { get; set; }
 
         public Dictionary<string, object>? Meta { get; set; }
+        public Dictionary<string, object>? FiltersParams { get; set; }
         public bool IsActive { get; set; } = true;
         public Guid? ParentFolderId { get; set; }
     }
@@ -189,6 +191,7 @@ namespace Application.DTOs
         public System.Text.Json.JsonElement? Data { get; set; }
 
         public Dictionary<string, object>? Meta { get; set; }
+        public Dictionary<string, object>? FiltersParams { get; set; }
         public bool IsActive { get; set; } = true;
         public Guid? ParentFolderId { get; set; }
     }

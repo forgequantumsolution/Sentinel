@@ -37,6 +37,9 @@ public class GraphConfigEntity : TenantEntity
 
     public Dictionary<string, object>? Meta { get; set; }
 
+    /// <summary>Default parameter values for filtering (e.g. @FROM, @TO, @Period).</summary>
+    public Dictionary<string, object>? FiltersParams { get; set; }
+
     // ─── Folder placement via ActionObject ──────────────────────────────────
 
     public Guid? ActionObjectId { get; set; }

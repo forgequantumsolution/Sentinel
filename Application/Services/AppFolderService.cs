@@ -239,6 +239,7 @@ namespace Application.Services
                             View = payload.View,
                             Data = payload.Data,
                             Meta = payload.Meta,
+                            FiltersParams = config.FiltersParams,
                             IsActive = config.IsActive,
                             CreatedAt = config.CreatedAt,
                             UpdatedAt = config.UpdatedAt,

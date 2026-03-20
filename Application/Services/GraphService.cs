@@ -85,6 +85,7 @@ namespace Application.Services
                 View = request.View.HasValue ? request.View.Value.GetRawText() : "{}",
                 Data = request.Data.HasValue ? request.Data.Value.GetRawText() : "{}",
                 Meta = request.Meta,
+                FiltersParams = request.FiltersParams,
                 IsActive = request.IsActive,
                 ActionObjectId = actionObject?.Id,
                 CreatedAt = DateTime.UtcNow
@@ -110,6 +111,7 @@ namespace Application.Services
             graphConfig.View = request.View.HasValue ? request.View.Value.GetRawText() : "{}";
             graphConfig.Data = request.Data.HasValue ? request.Data.Value.GetRawText() : "{}";
             graphConfig.Meta = request.Meta;
+            graphConfig.FiltersParams = request.FiltersParams;
             graphConfig.IsActive = request.IsActive;
             graphConfig.UpdatedAt = DateTime.UtcNow;
 
@@ -244,7 +246,8 @@ namespace Application.Services
                 Type = graphConfig.Type,
                 ComponentType = graphConfig.ComponentType.HasValue ? (int)graphConfig.ComponentType.Value : null,
                 View = ParseJsonElement(graphConfig.View),
-                Meta = graphConfig.Meta
+                Meta = graphConfig.Meta,
+                FiltersParams = graphConfig.FiltersParams
             };
 
             if (dataDef == null)
@@ -263,7 +266,7 @@ namespace Application.Services
 
             if (dataDef.Source.Type == DataSourceType.DynamicForm && dataDef.Source.DynamicForm != null)
             {
-                // Merge saved parameters with runtime parameters (runtime wins)
+                // Merge parameters: DynamicForm defaults → runtime request (wins)
                 var effectiveParams = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
                 if (dataDef.Source.DynamicForm.Parameters != null)
                     foreach (var kv in dataDef.Source.DynamicForm.Parameters)

@@ -20,6 +20,8 @@ namespace Core.Models
         public JsonElement? Data { get; set; }
 
         public Dictionary<string, object>? Meta { get; set; }
+
+        public Dictionary<string, object>? FiltersParams { get; set; }
     }
 
     // ── Reference schemas ────────────────────────────────────────────────────────
