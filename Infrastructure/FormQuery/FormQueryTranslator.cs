@@ -1,24 +1,25 @@
 using System.Text;
 using Application.FormQuery;
 using Npgsql;
-using NpgsqlTypes;
 
 namespace Infrastructure.FormQuery
 {
     /// <summary>
-    /// Translates a FormQuery AST into real PostgreSQL SQL over the EAV table (DynamicFormRecordValues).
+    /// Translates a FormQuery AST into PostgreSQL SQL over the EAV table (DynamicFormRecordValues).
     ///
-    /// Strategy:
-    /// - Each form reference becomes a CTE that pivots EAV rows into columns using conditional aggregation.
-    /// - The outer query references CTEs and applies WHERE/ORDER BY/LIMIT etc.
-    /// - For single-form queries without JOINs, a simpler inline approach is used.
+    /// Strategy (always CTE-based):
+    /// 1. Each form becomes a CTE that pivots EAV rows into columns via MAX(CASE...) grouped by SubmissionId.
+    /// 2. The outer query references CTEs as regular tables and applies SELECT/WHERE/ORDER BY/etc.
     /// </summary>
     public class FormQueryTranslator
     {
-        private readonly Dictionary<string, FormSchema> _schemas; // alias/name → schema
+        private readonly Dictionary<string, FormSchema> _schemas;
         private readonly Guid? _organizationId;
         private readonly List<NpgsqlParameter> _parameters = new();
         private int _paramIndex;
+
+        // Tracks all form references (FROM + JOINs) so outer expressions can resolve aliases
+        private List<(string FormName, string Alias)> _formRefs = new();
 
         public FormQueryTranslator(Dictionary<string, FormSchema> schemas, Guid? organizationId)
         {
@@ -31,145 +32,58 @@ namespace Infrastructure.FormQuery
             _parameters.Clear();
             _paramIndex = 0;
 
-            var sb = new StringBuilder();
-            bool hasJoins = query.Joins.Count > 0;
+            // Collect all form references
+            var primaryAlias = query.From.Alias ?? query.From.FormName;
+            _formRefs = new List<(string FormName, string Alias)>
+            {
+                (query.From.FormName, primaryAlias)
+            };
+            foreach (var join in query.Joins)
+            {
+                _formRefs.Add((join.FormName, join.Alias));
+            }
 
-            if (hasJoins)
-            {
-                TranslateWithCtes(sb, query);
-            }
-            else
-            {
-                TranslateSingleForm(sb, query);
-            }
+            var sb = new StringBuilder();
+
+            // 1. Build CTEs
+            BuildCtes(sb, query);
+
+            // 2. Build outer query
+            BuildOuterQuery(sb, query, primaryAlias);
 
             return (sb.ToString(), _parameters);
         }
 
-        // ── Single form (no JOINs) – inline pivot ──
+        // ── Step 1: Build CTEs ──
 
-        private void TranslateSingleForm(StringBuilder sb, Application.FormQuery.FormQuery query)
+        private void BuildCtes(StringBuilder sb, Application.FormQuery.FormQuery query)
         {
-            var schema = ResolveSchema(query.From.FormName);
-            var alias = query.From.Alias ?? query.From.FormName;
-
-            // We need to know all fields referenced in the query to include in the pivot
-            var referencedFields = CollectReferencedFields(query, alias, schema);
-
-            // Build the query with conditional aggregation
-            sb.Append("SELECT ");
-            if (query.Select.Distinct) sb.Append("DISTINCT ");
-
-            // SELECT items
-            var selectParts = new List<string>();
-            foreach (var item in query.Select.Items)
-            {
-                if (item.Expr is StarExpr)
-                {
-                    // Select all fields — deduplicate because schema.Fields indexes by both FieldName and ColumnName
-                    foreach (var field in schema.Fields.Values.DistinctBy(f => f.FieldDefinitionId))
-                    {
-                        selectParts.Add($"{PivotExpression(field, schema)} AS \"{field.FieldName}\"");
-                    }
-                }
-                else
-                {
-                    var sqlExpr = TranslateSelectExpression(item.Expr, alias, schema);
-                    var colAlias = item.Alias ?? GetExpressionAlias(item.Expr);
-                    selectParts.Add($"{sqlExpr} AS \"{colAlias}\"");
-                }
-            }
-            sb.AppendLine(string.Join(", ", selectParts));
-
-            // FROM
-            var formIdParam = AddParameter(schema.FormId);
-            sb.AppendLine($"FROM \"DynamicFormRecordValues\" v");
-            sb.AppendLine($"INNER JOIN \"DynamicFormSubmissions\" s ON v.\"SubmissionId\" = s.\"Id\"");
-            sb.Append($"WHERE v.\"FormId\" = @{formIdParam} AND v.\"IsDeleted\" = false AND s.\"IsDeleted\" = false");
-
-            // Tenant isolation
-            if (_organizationId.HasValue)
-            {
-                var orgParam = AddParameter(_organizationId.Value);
-                sb.Append($" AND v.\"OrganizationId\" = @{orgParam}");
-            }
-            sb.AppendLine();
-
-            // GROUP BY submission
-            sb.AppendLine("GROUP BY v.\"SubmissionId\"");
-
-            // WHERE → HAVING (since we're aggregating)
-            if (query.Where != null)
-            {
-                sb.Append("HAVING ");
-                sb.AppendLine(TranslateWhereExpression(query.Where, alias, schema));
-            }
-
-            // Additional HAVING (from explicit HAVING clause)
-            if (query.Having != null)
-            {
-                sb.Append(query.Where != null ? "AND " : "HAVING ");
-                sb.AppendLine(TranslateWhereExpression(query.Having, alias, schema));
-            }
-
-            // ORDER BY
-            if (query.OrderBy != null)
-            {
-                var orderParts = query.OrderBy.Select(o =>
-                    $"{TranslateExpressionToPivot(o.Expr, alias, schema)} {(o.Descending ? "DESC" : "ASC")}");
-                sb.AppendLine($"ORDER BY {string.Join(", ", orderParts)}");
-            }
-
-            // LIMIT / OFFSET
-            if (query.Limit.HasValue)
-            {
-                var limitParam = AddParameter(query.Limit.Value);
-                sb.AppendLine($"LIMIT @{limitParam}");
-            }
-            if (query.Offset.HasValue)
-            {
-                var offsetParam = AddParameter(query.Offset.Value);
-                sb.AppendLine($"OFFSET @{offsetParam}");
-            }
-        }
-
-        // ── Multiple forms with JOINs – CTE based ──
-
-        private void TranslateWithCtes(StringBuilder sb, Application.FormQuery.FormQuery query)
-        {
-            // Collect all form references: FROM + JOINs
-            var formRefs = new List<(string FormName, string Alias)>
-            {
-                (query.From.FormName, query.From.Alias ?? query.From.FormName)
-            };
-            foreach (var join in query.Joins)
-            {
-                formRefs.Add((join.FormName, join.Alias));
-            }
-
-            // Build CTEs – one per form, pivoting all referenced fields
             sb.AppendLine("WITH");
             var cteParts = new List<string>();
-            foreach (var (formName, formAlias) in formRefs)
+
+            foreach (var (formName, formAlias) in _formRefs)
             {
                 var schema = ResolveSchema(formName);
-                var fieldsForForm = CollectReferencedFieldsForAlias(query, formAlias, schema);
+                var fields = CollectReferencedFieldsForAlias(query, formAlias, schema);
 
-                // If no specific fields referenced, include all
-                if (fieldsForForm.Count == 0)
-                    fieldsForForm = schema.Fields.Values.DistinctBy(f => f.FieldDefinitionId).ToList();
+                if (fields.Count == 0)
+                    fields = schema.Fields.Values.DistinctBy(f => f.FieldDefinitionId).ToList();
 
                 var cteSb = new StringBuilder();
                 var formIdParam = AddParameter(schema.FormId);
+
                 cteSb.Append($"\"{formAlias}\" AS (\n  SELECT v.\"SubmissionId\"");
 
-                foreach (var field in fieldsForForm)
+                foreach (var field in fields)
                 {
-                    cteSb.Append($",\n    {PivotExpression(field, schema)} AS \"{field.FieldName}\"");
+                    var paramName = AddParameter(field.FieldDefinitionId);
+                    var cast = MapFieldTypeToPgCast(field.FieldType);
+                    cteSb.Append($",\n    (MAX(CASE WHEN v.\"FieldDefinitionId\" = @{paramName} THEN v.\"Value\" END)){cast} AS \"{field.FieldName}\"");
                 }
 
                 cteSb.Append($"\n  FROM \"DynamicFormRecordValues\" v");
-                cteSb.Append($"\n  WHERE v.\"FormId\" = @{formIdParam} AND v.\"IsDeleted\" = false");
+                cteSb.Append($"\n  INNER JOIN \"DynamicFormSubmissions\" s ON v.\"SubmissionId\" = s.\"Id\"");
+                cteSb.Append($"\n  WHERE v.\"FormId\" = @{formIdParam} AND v.\"IsDeleted\" = false AND s.\"IsDeleted\" = false");
 
                 if (_organizationId.HasValue)
                 {
@@ -180,9 +94,15 @@ namespace Infrastructure.FormQuery
                 cteSb.Append("\n  GROUP BY v.\"SubmissionId\"\n)");
                 cteParts.Add(cteSb.ToString());
             }
-            sb.AppendLine(string.Join(",\n", cteParts));
 
-            // Outer SELECT
+            sb.AppendLine(string.Join(",\n", cteParts));
+        }
+
+        // ── Step 2: Build outer query over CTEs ──
+
+        private void BuildOuterQuery(StringBuilder sb, Application.FormQuery.FormQuery query, string primaryAlias)
+        {
+            // SELECT
             sb.Append("SELECT ");
             if (query.Select.Distinct) sb.Append("DISTINCT ");
 
@@ -191,35 +111,18 @@ namespace Infrastructure.FormQuery
             {
                 if (item.Expr is StarExpr starExpr)
                 {
-                    var targetAlias = starExpr.TableAlias;
-                    if (targetAlias != null)
-                    {
-                        var schema = ResolveSchemaByAlias(targetAlias, formRefs);
-                        foreach (var field in schema.Fields.Values.DistinctBy(f => f.FieldDefinitionId))
-                            selectParts.Add($"\"{targetAlias}\".\"{field.FieldName}\"");
-                    }
-                    else
-                    {
-                        // All fields from all forms
-                        foreach (var (formName, formAlias) in formRefs)
-                        {
-                            var schema = ResolveSchema(formName);
-                            foreach (var field in schema.Fields.Values.DistinctBy(f => f.FieldDefinitionId))
-                                selectParts.Add($"\"{formAlias}\".\"{field.FieldName}\"");
-                        }
-                    }
+                    ExpandStar(starExpr, selectParts);
                 }
                 else
                 {
-                    var sqlExpr = TranslateCteExpression(item.Expr);
+                    var sqlExpr = TranslateExpression(item.Expr);
                     var colAlias = item.Alias ?? GetExpressionAlias(item.Expr);
                     selectParts.Add($"{sqlExpr} AS \"{colAlias}\"");
                 }
             }
             sb.AppendLine(string.Join(", ", selectParts));
 
-            // FROM (first CTE)
-            var primaryAlias = query.From.Alias ?? query.From.FormName;
+            // FROM
             sb.AppendLine($"FROM \"{primaryAlias}\"");
 
             // JOINs
@@ -231,7 +134,7 @@ namespace Infrastructure.FormQuery
                     JoinType.Right => "RIGHT JOIN",
                     _ => "INNER JOIN"
                 };
-                var onExpr = TranslateCteExpression(join.On);
+                var onExpr = TranslateExpression(join.On);
                 sb.AppendLine($"{joinKeyword} \"{join.Alias}\" ON {onExpr}");
             }
 
@@ -239,13 +142,13 @@ namespace Infrastructure.FormQuery
             if (query.Where != null)
             {
                 sb.Append("WHERE ");
-                sb.AppendLine(TranslateCteWhereExpression(query.Where));
+                sb.AppendLine(TranslateWhereExpression(query.Where));
             }
 
             // GROUP BY
             if (query.GroupBy != null)
             {
-                var groupParts = query.GroupBy.Select(TranslateCteExpression);
+                var groupParts = query.GroupBy.Select(TranslateExpression);
                 sb.AppendLine($"GROUP BY {string.Join(", ", groupParts)}");
             }
 
@@ -253,14 +156,14 @@ namespace Infrastructure.FormQuery
             if (query.Having != null)
             {
                 sb.Append("HAVING ");
-                sb.AppendLine(TranslateCteWhereExpression(query.Having));
+                sb.AppendLine(TranslateWhereExpression(query.Having));
             }
 
             // ORDER BY
             if (query.OrderBy != null)
             {
                 var orderParts = query.OrderBy.Select(o =>
-                    $"{TranslateCteExpression(o.Expr)} {(o.Descending ? "DESC" : "ASC")}");
+                    $"{TranslateExpression(o.Expr)} {(o.Descending ? "DESC" : "ASC")}");
                 sb.AppendLine($"ORDER BY {string.Join(", ", orderParts)}");
             }
 
@@ -277,174 +180,114 @@ namespace Infrastructure.FormQuery
             }
         }
 
-        // ── Expression translators for single-form (pivot) mode ──
+        // ── Star expansion ──
 
-        private string TranslateSelectExpression(Expression expr, string alias, FormSchema schema)
+        private void ExpandStar(StarExpr starExpr, List<string> selectParts)
         {
-            return expr switch
+            if (starExpr.TableAlias != null)
             {
-                FunctionExpr func => TranslateAggregatePivot(func, alias, schema),
-                FieldRefExpr field => PivotExpressionByName(field.FieldName, schema),
-                LiteralExpr lit => TranslateLiteral(lit),
-                CastExpr cast => $"CAST({TranslateExpressionToPivot(cast.Expr, alias, schema)} AS {MapCastType(cast.TargetType)})",
-                CaseExpr caseExpr => TranslateCasePivot(caseExpr, alias, schema),
-                _ => TranslateExpressionToPivot(expr, alias, schema)
-            };
-        }
-
-        private string TranslateExpressionToPivot(Expression expr, string alias, FormSchema schema)
-        {
-            return expr switch
+                var schema = ResolveSchemaByAlias(starExpr.TableAlias);
+                foreach (var field in schema.Fields.Values.DistinctBy(f => f.FieldDefinitionId))
+                    selectParts.Add($"\"{starExpr.TableAlias}\".\"{field.FieldName}\"");
+            }
+            else
             {
-                FieldRefExpr field => PivotExpressionByName(field.FieldName, schema),
-                LiteralExpr lit => TranslateLiteral(lit),
-                FunctionExpr func => TranslateAggregatePivot(func, alias, schema),
-                BinaryExpr bin => $"({TranslateExpressionToPivot(bin.Left, alias, schema)} {bin.Operator} {TranslateExpressionToPivot(bin.Right, alias, schema)})",
-                UnaryExpr un => $"({un.Operator} {TranslateExpressionToPivot(un.Operand, alias, schema)})",
-                CastExpr cast => $"CAST({TranslateExpressionToPivot(cast.Expr, alias, schema)} AS {MapCastType(cast.TargetType)})",
-                CaseExpr caseExpr => TranslateCasePivot(caseExpr, alias, schema),
-                StarExpr => "1",
-                _ => throw new FormQueryException($"Unsupported expression type: {expr.GetType().Name}")
-            };
+                foreach (var (formName, formAlias) in _formRefs)
+                {
+                    var schema = ResolveSchema(formName);
+                    foreach (var field in schema.Fields.Values.DistinctBy(f => f.FieldDefinitionId))
+                        selectParts.Add($"\"{formAlias}\".\"{field.FieldName}\"");
+                }
+            }
         }
 
-        private string TranslateWhereExpression(Expression expr, string alias, FormSchema schema)
-        {
-            return expr switch
-            {
-                BinaryExpr bin when bin.Operator is "AND" or "OR" =>
-                    $"({TranslateWhereExpression(bin.Left, alias, schema)} {bin.Operator} {TranslateWhereExpression(bin.Right, alias, schema)})",
-                BinaryExpr bin =>
-                    $"{TranslateExpressionToPivot(bin.Left, alias, schema)} {bin.Operator} {TranslateExpressionToPivot(bin.Right, alias, schema)}",
-                UnaryExpr un =>
-                    $"{un.Operator} ({TranslateWhereExpression(un.Operand, alias, schema)})",
-                IsNullExpr isNull =>
-                    $"{TranslateExpressionToPivot(isNull.Expr, alias, schema)} IS {(isNull.Not ? "NOT " : "")}NULL",
-                InExpr inExpr =>
-                    $"{TranslateExpressionToPivot(inExpr.Expr, alias, schema)} {(inExpr.Not ? "NOT " : "")}IN ({string.Join(", ", inExpr.Values.Select(v => TranslateExpressionToPivot(v, alias, schema)))})",
-                BetweenExpr between =>
-                    $"{TranslateExpressionToPivot(between.Expr, alias, schema)} {(between.Not ? "NOT " : "")}BETWEEN {TranslateExpressionToPivot(between.Low, alias, schema)} AND {TranslateExpressionToPivot(between.High, alias, schema)}",
-                _ => TranslateExpressionToPivot(expr, alias, schema)
-            };
-        }
+        // ── Outer expression translators (operate on CTE columns) ──
 
-        private string TranslateAggregatePivot(FunctionExpr func, string alias, FormSchema schema)
-        {
-            if (func.Args.Count == 1 && func.Args[0] is StarExpr)
-                return $"{func.Name}(*)";
-
-            var innerArgs = func.Args.Select(a => TranslateExpressionToPivot(a, alias, schema));
-            var distinct = func.Distinct ? "DISTINCT " : "";
-            return $"{func.Name}({distinct}{string.Join(", ", innerArgs)})";
-        }
-
-        // ── Expression translators for CTE (join) mode ──
-
-        private string TranslateCteExpression(Expression expr)
+        private string TranslateExpression(Expression expr)
         {
             return expr switch
             {
                 FieldRefExpr field when field.TableAlias != null =>
                     $"\"{field.TableAlias}\".\"{field.FieldName}\"",
-                FieldRefExpr field => $"\"{field.FieldName}\"",
+                FieldRefExpr field => ResolveFieldColumn(field.FieldName),
                 LiteralExpr lit => TranslateLiteral(lit),
                 BinaryExpr bin =>
-                    $"({TranslateCteExpression(bin.Left)} {bin.Operator} {TranslateCteExpression(bin.Right)})",
+                    $"({TranslateExpression(bin.Left)} {bin.Operator} {TranslateExpression(bin.Right)})",
                 UnaryExpr un =>
-                    $"({un.Operator} {TranslateCteExpression(un.Operand)})",
-                FunctionExpr func => TranslateAggregateCte(func),
+                    $"({un.Operator} {TranslateExpression(un.Operand)})",
+                FunctionExpr func => TranslateFunction(func),
                 CastExpr cast =>
-                    $"CAST({TranslateCteExpression(cast.Expr)} AS {MapCastType(cast.TargetType)})",
-                CaseExpr caseExpr => TranslateCaseCte(caseExpr),
+                    $"CAST({TranslateExpression(cast.Expr)} AS {MapCastType(cast.TargetType)})",
+                CaseExpr caseExpr => TranslateCase(caseExpr),
                 IsNullExpr isNull =>
-                    $"{TranslateCteExpression(isNull.Expr)} IS {(isNull.Not ? "NOT " : "")}NULL",
+                    $"{TranslateExpression(isNull.Expr)} IS {(isNull.Not ? "NOT " : "")}NULL",
                 StarExpr star when star.TableAlias != null => $"\"{star.TableAlias}\".*",
                 StarExpr => "*",
-                _ => throw new FormQueryException($"Unsupported expression type in CTE: {expr.GetType().Name}")
+                _ => throw new FormQueryException($"Unsupported expression type: {expr.GetType().Name}")
             };
         }
 
-        private string TranslateCteWhereExpression(Expression expr)
+        private string TranslateWhereExpression(Expression expr)
         {
             return expr switch
             {
                 BinaryExpr bin when bin.Operator is "AND" or "OR" =>
-                    $"({TranslateCteWhereExpression(bin.Left)} {bin.Operator} {TranslateCteWhereExpression(bin.Right)})",
+                    $"({TranslateWhereExpression(bin.Left)} {bin.Operator} {TranslateWhereExpression(bin.Right)})",
                 InExpr inExpr =>
-                    $"{TranslateCteExpression(inExpr.Expr)} {(inExpr.Not ? "NOT " : "")}IN ({string.Join(", ", inExpr.Values.Select(TranslateCteExpression))})",
+                    $"{TranslateExpression(inExpr.Expr)} {(inExpr.Not ? "NOT " : "")}IN ({string.Join(", ", inExpr.Values.Select(TranslateExpression))})",
                 BetweenExpr between =>
-                    $"{TranslateCteExpression(between.Expr)} {(between.Not ? "NOT " : "")}BETWEEN {TranslateCteExpression(between.Low)} AND {TranslateCteExpression(between.High)}",
-                _ => TranslateCteExpression(expr)
+                    $"{TranslateExpression(between.Expr)} {(between.Not ? "NOT " : "")}BETWEEN {TranslateExpression(between.Low)} AND {TranslateExpression(between.High)}",
+                _ => TranslateExpression(expr)
             };
         }
 
-        private string TranslateAggregateCte(FunctionExpr func)
+        private string TranslateFunction(FunctionExpr func)
         {
             if (func.Args.Count == 1 && func.Args[0] is StarExpr)
                 return $"{func.Name}(*)";
 
             var distinct = func.Distinct ? "DISTINCT " : "";
-            var args = func.Args.Select(TranslateCteExpression);
+            var args = func.Args.Select(TranslateExpression);
             return $"{func.Name}({distinct}{string.Join(", ", args)})";
         }
 
-        // ── CASE expression helpers ──
-
-        private string TranslateCasePivot(CaseExpr caseExpr, string alias, FormSchema schema)
+        private string TranslateCase(CaseExpr caseExpr)
         {
             var sb = new StringBuilder("CASE");
             if (caseExpr.Operand != null)
-            {
-                sb.Append($" {TranslateExpressionToPivot(caseExpr.Operand, alias, schema)}");
-            }
+                sb.Append($" {TranslateExpression(caseExpr.Operand)}");
             foreach (var when in caseExpr.Whens)
             {
-                sb.Append($" WHEN {TranslateExpressionToPivot(when.Condition, alias, schema)}");
-                sb.Append($" THEN {TranslateExpressionToPivot(when.Result, alias, schema)}");
+                sb.Append($" WHEN {TranslateExpression(when.Condition)}");
+                sb.Append($" THEN {TranslateExpression(when.Result)}");
             }
             if (caseExpr.Else != null)
-            {
-                sb.Append($" ELSE {TranslateExpressionToPivot(caseExpr.Else, alias, schema)}");
-            }
+                sb.Append($" ELSE {TranslateExpression(caseExpr.Else)}");
             sb.Append(" END");
             return sb.ToString();
         }
 
-        private string TranslateCaseCte(CaseExpr caseExpr)
+        // ── Field resolution ──
+
+        /// <summary>
+        /// For unqualified field references, find which CTE contains the field and qualify it.
+        /// If only one form, use unqualified column name.
+        /// </summary>
+        private string ResolveFieldColumn(string fieldName)
         {
-            var sb = new StringBuilder("CASE");
-            if (caseExpr.Operand != null)
+            if (_formRefs.Count == 1)
+                return $"\"{fieldName}\"";
+
+            // Find which form has this field
+            foreach (var (formName, formAlias) in _formRefs)
             {
-                sb.Append($" {TranslateCteExpression(caseExpr.Operand)}");
+                var schema = ResolveSchema(formName);
+                if (schema.Fields.ContainsKey(fieldName))
+                    return $"\"{formAlias}\".\"{fieldName}\"";
             }
-            foreach (var when in caseExpr.Whens)
-            {
-                sb.Append($" WHEN {TranslateCteExpression(when.Condition)}");
-                sb.Append($" THEN {TranslateCteExpression(when.Result)}");
-            }
-            if (caseExpr.Else != null)
-            {
-                sb.Append($" ELSE {TranslateCteExpression(caseExpr.Else)}");
-            }
-            sb.Append(" END");
-            return sb.ToString();
-        }
 
-        // ── Pivot helpers ──
-
-        private string PivotExpression(FieldSchema field, FormSchema schema)
-        {
-            var paramName = AddParameter(field.FieldDefinitionId);
-            return $"MAX(CASE WHEN v.\"FieldDefinitionId\" = @{paramName} THEN v.\"Value\" END)";
-        }
-
-        private string PivotExpressionByName(string fieldName, FormSchema schema)
-        {
-            if (!schema.Fields.TryGetValue(fieldName, out var field))
-                throw new FormQueryException($"Field '{fieldName}' not found in form '{schema.FormName}'");
-
-            var paramName = AddParameter(field.FieldDefinitionId);
-            return $"MAX(CASE WHEN v.\"FieldDefinitionId\" = @{paramName} THEN v.\"Value\" END)";
+            // Fallback — let PostgreSQL resolve it
+            return $"\"{fieldName}\"";
         }
 
         // ── Shared helpers ──
@@ -464,6 +307,16 @@ namespace Infrastructure.FormQuery
             return name;
         }
 
+        private static string MapFieldTypeToPgCast(string fieldType) => fieldType.ToUpperInvariant() switch
+        {
+            "INT" or "INTEGER" or "NUMBER" => "::INTEGER",
+            "DECIMAL" or "FLOAT" or "DOUBLE" => "::NUMERIC",
+            "BOOLEAN" or "BOOL" => "::BOOLEAN",
+            "DATETIME" or "TIMESTAMP" => "::TIMESTAMP",
+            "DATE" => "::DATE",
+            _ => "" // String / Text — no cast needed
+        };
+
         private static string MapCastType(string type) => type.ToUpperInvariant() switch
         {
             "INT" or "INTEGER" => "INTEGER",
@@ -478,15 +331,14 @@ namespace Infrastructure.FormQuery
 
         private FormSchema ResolveSchema(string formName)
         {
-            // Try by name first, then by alias
             if (_schemas.TryGetValue(formName, out var schema))
                 return schema;
             throw new FormQueryException($"Form '{formName}' not found. Ensure the form exists and you have access.");
         }
 
-        private FormSchema ResolveSchemaByAlias(string alias, List<(string FormName, string Alias)> formRefs)
+        private FormSchema ResolveSchemaByAlias(string alias)
         {
-            var formRef = formRefs.FirstOrDefault(f => f.Alias == alias);
+            var formRef = _formRefs.FirstOrDefault(f => f.Alias == alias);
             if (formRef == default)
                 throw new FormQueryException($"Unknown table alias '{alias}'");
             return ResolveSchema(formRef.FormName);
@@ -499,12 +351,31 @@ namespace Infrastructure.FormQuery
             _ => "expr"
         };
 
-        // ── Field collection ──
+        // ── Field collection (determines which fields to pivot in each CTE) ──
 
-        private List<FieldSchema> CollectReferencedFields(Application.FormQuery.FormQuery query, string alias, FormSchema schema)
+        private List<FieldSchema> CollectReferencedFieldsForAlias(Application.FormQuery.FormQuery query, string alias, FormSchema schema)
         {
+            // If SELECT * (unqualified or targeting this alias), include all fields
+            foreach (var item in query.Select.Items)
+            {
+                if (item.Expr is StarExpr star && (star.TableAlias == null || star.TableAlias == alias))
+                    return schema.Fields.Values.DistinctBy(f => f.FieldDefinitionId).ToList();
+            }
+
             var fields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            CollectFieldsFromExpressions(query, alias, fields);
+
+            foreach (var item in query.Select.Items)
+                CollectFieldNamesFromExpression(item.Expr, alias, fields);
+            if (query.Where != null)
+                CollectFieldNamesFromExpression(query.Where, alias, fields);
+            foreach (var join in query.Joins)
+                CollectFieldNamesFromExpression(join.On, alias, fields);
+            if (query.OrderBy != null)
+                foreach (var o in query.OrderBy) CollectFieldNamesFromExpression(o.Expr, alias, fields);
+            if (query.GroupBy != null)
+                foreach (var g in query.GroupBy) CollectFieldNamesFromExpression(g, alias, fields);
+            if (query.Having != null)
+                CollectFieldNamesFromExpression(query.Having, alias, fields);
 
             if (fields.Count == 0)
                 return schema.Fields.Values.DistinctBy(f => f.FieldDefinitionId).ToList();
@@ -516,63 +387,11 @@ namespace Infrastructure.FormQuery
                 .ToList();
         }
 
-        private List<FieldSchema> CollectReferencedFieldsForAlias(Application.FormQuery.FormQuery query, string alias, FormSchema schema)
-        {
-            var fields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            // Collect from SELECT
-            foreach (var item in query.Select.Items)
-                CollectFieldNamesFromExpression(item.Expr, alias, fields);
-
-            // Collect from WHERE
-            if (query.Where != null)
-                CollectFieldNamesFromExpression(query.Where, alias, fields);
-
-            // Collect from JOINs ON
-            foreach (var join in query.Joins)
-            {
-                if (join.Alias == alias)
-                    CollectFieldNamesFromExpression(join.On, alias, fields);
-                else
-                    CollectFieldNamesFromExpression(join.On, alias, fields);
-            }
-
-            // Collect from ORDER BY, GROUP By, Having
-            if (query.OrderBy != null)
-                foreach (var o in query.OrderBy) CollectFieldNamesFromExpression(o.Expr, alias, fields);
-            if (query.GroupBy != null)
-                foreach (var g in query.GroupBy) CollectFieldNamesFromExpression(g, alias, fields);
-            if (query.Having != null)
-                CollectFieldNamesFromExpression(query.Having, alias, fields);
-
-            if (fields.Count == 0)
-                return schema.Fields.Values.ToList();
-
-            return fields
-                .Where(f => schema.Fields.ContainsKey(f))
-                .Select(f => schema.Fields[f])
-                .ToList();
-        }
-
-        private void CollectFieldsFromExpressions(Application.FormQuery.FormQuery query, string alias, HashSet<string> fields)
-        {
-            foreach (var item in query.Select.Items)
-                CollectFieldNamesFromExpression(item.Expr, null, fields);
-            if (query.Where != null)
-                CollectFieldNamesFromExpression(query.Where, null, fields);
-            if (query.OrderBy != null)
-                foreach (var o in query.OrderBy) CollectFieldNamesFromExpression(o.Expr, null, fields);
-            if (query.GroupBy != null)
-                foreach (var g in query.GroupBy) CollectFieldNamesFromExpression(g, null, fields);
-            if (query.Having != null)
-                CollectFieldNamesFromExpression(query.Having, null, fields);
-        }
-
-        private void CollectFieldNamesFromExpression(Expression expr, string? targetAlias, HashSet<string> fields)
+        private void CollectFieldNamesFromExpression(Expression expr, string targetAlias, HashSet<string> fields)
         {
             switch (expr)
             {
-                case FieldRefExpr f when targetAlias == null || f.TableAlias == null || f.TableAlias == targetAlias:
+                case FieldRefExpr f when f.TableAlias == null || f.TableAlias == targetAlias:
                     fields.Add(f.FieldName);
                     break;
                 case BinaryExpr bin:
@@ -612,7 +431,7 @@ namespace Infrastructure.FormQuery
                         CollectFieldNamesFromExpression(caseExpr.Else, targetAlias, fields);
                     break;
                 case StarExpr:
-                    break; // Star means all fields — handled separately
+                    break;
             }
         }
     }

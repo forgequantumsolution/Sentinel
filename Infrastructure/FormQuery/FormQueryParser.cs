@@ -154,7 +154,11 @@ namespace Infrastructure.FormQuery
         {
             Expect(TokenType.From);
             var clause = new FromClause { FormName = ParseIdentifierName() };
-            if ((Current.Type == TokenType.Identifier || Current.Type == TokenType.QuotedIdentifier) && !IsClauseKeyword())
+            if (Match(TokenType.As))
+            {
+                clause.Alias = ParseIdentifierName();
+            }
+            else if ((Current.Type == TokenType.Identifier || Current.Type == TokenType.QuotedIdentifier) && !IsClauseKeyword())
             {
                 clause.Alias = ParseIdentifierName();
             }
@@ -177,8 +181,12 @@ namespace Infrastructure.FormQuery
                 FormName = ParseIdentifierName()
             };
 
-            // Alias is required for joins
-            if (Current.Type == TokenType.Identifier || Current.Type == TokenType.QuotedIdentifier)
+            // Alias (with or without AS keyword)
+            if (Match(TokenType.As))
+            {
+                clause.Alias = ParseIdentifierName();
+            }
+            else if (Current.Type == TokenType.Identifier || Current.Type == TokenType.QuotedIdentifier)
             {
                 if (!Check(TokenType.On))
                     clause.Alias = ParseIdentifierName();
@@ -402,11 +410,15 @@ namespace Infrastructure.FormQuery
                         Advance();
                         return new StarExpr { TableAlias = name };
                     }
-                    var fieldName = ParseIdentifierName();
+                    var fieldName = ParseMultiWordName();
                     return new FieldRefExpr { TableAlias = name, FieldName = fieldName };
                 }
 
-                return new FieldRefExpr { FieldName = name };
+                // Bare field ref — may be multi-word (e.g., "Brand Name")
+                var extendedName = name;
+                while (Current.Type == TokenType.Identifier)
+                    extendedName += " " + Advance().Value;
+                return new FieldRefExpr { FieldName = extendedName };
             }
 
             throw new FormQueryException($"Unexpected token {Current.Type} ('{Current.Value}') at position {Current.Position}");
@@ -465,6 +477,19 @@ namespace Infrastructure.FormQuery
             if (Current.Type == TokenType.QuotedIdentifier || Current.Type == TokenType.Identifier)
                 return Advance().Value;
             throw new FormQueryException($"Expected identifier but got {Current.Type} ('{Current.Value}') at position {Current.Position}");
+        }
+
+        /// <summary>
+        /// Parses a field name that may contain spaces (e.g., "Brand Name").
+        /// Consumes the first identifier, then keeps consuming consecutive bare identifiers.
+        /// Stops at keywords, operators, EOF, etc. Quoted identifiers are returned as-is.
+        /// </summary>
+        private string ParseMultiWordName()
+        {
+            var name = ParseIdentifierName();
+            while (Current.Type == TokenType.Identifier)
+                name += " " + Advance().Value;
+            return name;
         }
 
         private bool IsAggregateFunction() =>
