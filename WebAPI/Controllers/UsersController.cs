@@ -76,7 +76,7 @@ namespace Controllers
                 JobTitleId = request.JobTitleId,
                 Location = request.Location,
                 EmployeeId = request.EmployeeId,
-                Status = (Core.Enums.RequestStatus)request.Status,
+                Status = Core.Enums.RequestStatus.Approved,
                 IsActive = request.IsActive,
                 CreatedAt = DateTime.UtcNow
             };

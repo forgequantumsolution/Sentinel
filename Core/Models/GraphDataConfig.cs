@@ -55,6 +55,9 @@ public class SqlSourceConfig
 
     /// <summary>Named parameters for the query (e.g. @startDate).</summary>
     public Dictionary<string, object>? Parameters { get; set; }
+
+    /// <summary>Per-series axis mappings and calculations for this source.</summary>
+    public List<SeriesCalculation>? Series { get; set; }
 }
 
 // ─── REST API Source Config ──────────────────────────────────────────────────
@@ -68,6 +71,9 @@ public class RestApiSourceConfig
 
     /// <summary>JSON path to extract data from response, e.g. "$.data.items".</summary>
     public string? ResponseDataPath { get; set; }
+
+    /// <summary>Per-series axis mappings and calculations for this source.</summary>
+    public List<SeriesCalculation>? Series { get; set; }
 }
 
 // ─── CSV / File Source Config ────────────────────────────────────────────────
@@ -77,6 +83,9 @@ public class CsvSourceConfig
     public string? FilePath { get; set; }
     public bool HasHeader { get; set; } = true;
     public char Delimiter { get; set; } = ',';
+
+    /// <summary>Per-series axis mappings and calculations for this source.</summary>
+    public List<SeriesCalculation>? Series { get; set; }
 }
 
 // ─── Dynamic Form Source Config ───────────────────────────────────────────────
@@ -98,6 +107,9 @@ public class DynamicFormSourceConfig
     /// Optional named parameters referenced in the FormQuery SQL (e.g. @startDate).
     /// </summary>
     public Dictionary<string, object>? Parameters { get; set; }
+
+    /// <summary>Per-series axis mappings and calculations for this source.</summary>
+    public List<SeriesCalculation>? Series { get; set; }
 }
 
 // ─── Series Calculation ───────────────────────────────────────────────────────
@@ -111,23 +123,24 @@ public class SeriesCalculation
     /// <summary>Must match GraphSeries.Name exactly.</summary>
     public string SeriesName { get; set; } = string.Empty;
 
-    /// <summary>Column/field to use for X axis (or pie slice label).</summary>
-    public FieldMapping XField { get; set; } = new();
+    /// <summary>Column name to use for X axis (or pie slice label).</summary>
+    public string XField { get; set; } = string.Empty;
 
-    /// <summary>Column/field to use for Y axis (the value).</summary>
-    public FieldMapping YField { get; set; } = new();
+    /// <summary>Column name to use for Y axis (the value).</summary>
+    public string YField { get; set; } = string.Empty;
 
-    /// <summary>Optional Z field (Bubble chart size).</summary>
-    public FieldMapping? ZField { get; set; }
+    /// <summary>Optional column name for Z axis (Bubble chart size).</summary>
+    public string? ZField { get; set; }
 
-    /// <summary>Group rows by these fields before aggregating.</summary>
-    public List<string>? GroupByFields { get; set; }
+    // TODO: uncomment when functionality is developed
+    // /// <summary>Group rows by these fields before aggregating.</summary>
+    // public List<string>? GroupByFields { get; set; }
 
-    /// <summary>Filter applied only to this series (on top of GlobalFilter).</summary>
-    public FilterGroup? SeriesFilter { get; set; }
+    // /// <summary>Filter applied only to this series (on top of GlobalFilter).</summary>
+    // public FilterGroup? SeriesFilter { get; set; }
 
-    /// <summary>Optional formula applied to Y after aggregation.</summary>
-    public string? PostFormula { get; set; }   // e.g.  "value * 100 / total"
+    // /// <summary>Optional formula applied to Y after aggregation.</summary>
+    // public string? PostFormula { get; set; }   // e.g.  "value * 100 / total"
 }
 
 // ─── Field Mapping ────────────────────────────────────────────────────────────

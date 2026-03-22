@@ -293,7 +293,17 @@ namespace Application.Services
 
             if (queryResult != null)
             {
-                var graphData = TransformToGraphData(queryResult, dataDef.SeriesCalculations);
+                // Resolve series from active source type, fall back to dataDef level
+                var seriesCalcs = dataDef.Source.Type switch
+                {
+                    DataSourceType.DynamicForm => dataDef.Source.DynamicForm?.Series,
+                    DataSourceType.SqlQuery => dataDef.Source.Sql?.Series,
+                    DataSourceType.RestApi => dataDef.Source.RestApi?.Series,
+                    DataSourceType.CsvFile => dataDef.Source.Csv?.Series,
+                    _ => null
+                } ?? dataDef.SeriesCalculations;
+
+                var graphData = TransformToGraphData(queryResult, seriesCalcs, graphConfig.Data);
                 AssignSeriesColors(graphData, graphConfig.Data);
                 payload.Data = JsonSerializer.SerializeToElement(graphData);
             }
@@ -440,73 +450,87 @@ namespace Application.Services
         /// <summary>
         /// Transforms tabular query results into GraphDataConfig using series calculations.
         /// </summary>
-        private static GraphDataConfig TransformToGraphData(FormQueryResult result, List<SeriesCalculation> seriesCalcs)
+        private static GraphDataConfig TransformToGraphData(FormQueryResult result, List<SeriesCalculation> seriesCalcs, string? configDataJson = null)
         {
             var graphData = new GraphDataConfig();
 
+            // Try to load labels and series metadata from static config Data JSON
+            GraphDataConfig? configData = null;
+            if (!string.IsNullOrWhiteSpace(configDataJson))
+            {
+                try
+                {
+                    configData = JsonSerializer.Deserialize<GraphDataConfig>(configDataJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    //if (configData?.Labels?.Count > 0)
+                    //    graphData.Labels = configData.Labels;
+                }
+                catch { /* ignore parse errors */ }
+            }
+
             if (seriesCalcs.Count == 0 || result.Rows.Count == 0)
             {
-                // No series defined — return raw rows as a single series
                 if (result.Rows.Count > 0 && result.Columns.Count >= 2)
                 {
                     var xCol = result.Columns[0];
-                    var yCol = result.Columns[1];
-                    graphData.Labels = result.Rows.Select(r => r[xCol]?.ToString() ?? "").ToList();
-                    graphData.Series.Add(new GraphSeries
+
+                    if (configData?.Series != null && configData.Series.Count > 0)
                     {
-                        Name = yCol,
-                        Points = result.Rows.Select(r => new DataPoint
+                        // Number of series determined by config — map each to a result column
+                        var yColumns = result.Columns.Where(c => c != xCol).ToList();
+                        for (var i = 0; i < configData.Series.Count; i++)
                         {
-                            X = r[xCol],
-                            Y = r[yCol] ?? 0
-                        }).ToList()
-                    });
+                            var cfgSeries = configData.Series[i];
+                            var yCol = i < yColumns.Count ? yColumns[i] : yColumns.LastOrDefault() ?? result.Columns[1];
+                            graphData.Series.Add(new GraphSeries
+                            {
+                                Name = cfgSeries.Name,
+                                Color = cfgSeries.Color,
+                                Points = result.Rows.Select(r => new DataPoint
+                                {
+                                    X = r.GetValueOrDefault(xCol),
+                                    Y = r.GetValueOrDefault(yCol) ?? 0
+                                }).ToList()
+                            });
+                        }
+                    }
+                    else
+                    {
+                        // No config — single series from first two columns
+                        var yCol = result.Columns[1];
+                        graphData.Series.Add(new GraphSeries
+                        {
+                            Name = yCol,
+                            Points = result.Rows.Select(r => new DataPoint
+                            {
+                                X = r.GetValueOrDefault(xCol),
+                                Y = r.GetValueOrDefault(yCol) ?? 0
+                            }).ToList()
+                        });
+                    }
                 }
                 return graphData;
             }
 
-            foreach (var calc in seriesCalcs)
+            for (var i = 0; i < seriesCalcs.Count; i++)
             {
-                var rows = result.Rows.AsEnumerable();
+                var calc = seriesCalcs[i];
+                var rowList = result.Rows.ToList();
 
-                // Apply series-level filter
-                if (calc.SeriesFilter != null)
-                    rows = rows.Where(r => EvaluateFilter(r, calc.SeriesFilter));
+                // Use config series name if available, else fall back to calc.SeriesName
+                var seriesName = configData?.Series?.ElementAtOrDefault(i)?.Name ?? calc.SeriesName;
+                var series = new GraphSeries { Name = seriesName };
 
-                var rowList = rows.ToList();
-
-                var series = new GraphSeries { Name = calc.SeriesName };
-
-                if (calc.GroupByFields != null && calc.GroupByFields.Count > 0)
-                {
-                    // Group and aggregate
-                    var groups = rowList.GroupBy(r =>
-                        string.Join("|", calc.GroupByFields.Select(f => r.GetValueOrDefault(f)?.ToString() ?? "")));
-
-                    foreach (var group in groups)
-                    {
-                        var xValue = GetFieldValue(group.First(), calc.XField);
-                        var yValue = AggregateField(group, calc.YField);
-
-                        var point = new DataPoint { X = xValue, Y = yValue };
-                        if (calc.ZField != null)
-                            point.Z = AggregateField(group, calc.ZField);
-
-                        series.Points.Add(point);
-                    }
-                }
-                else
                 {
                     // No grouping — map rows directly
                     foreach (var row in rowList)
                     {
                         var point = new DataPoint
                         {
-                            X = GetFieldValue(row, calc.XField),
-                            Y = GetFieldValue(row, calc.YField) ?? 0
+                            X = row.GetValueOrDefault(calc.XField),
+                            Y = row.GetValueOrDefault(calc.YField) ?? 0
                         };
                         if (calc.ZField != null)
-                            point.Z = GetFieldValue(row, calc.ZField);
+                            point.Z = row.GetValueOrDefault(calc.ZField);
 
                         series.Points.Add(point);
                     }
@@ -581,32 +605,32 @@ namespace Application.Services
             }
         }
 
-        private static object? GetFieldValue(Dictionary<string, object?> row, FieldMapping field)
-        {
-            if (field.StaticValue != null) return field.StaticValue;
-            return row.GetValueOrDefault(field.FieldName);
-        }
+        // TODO: uncomment when FieldMapping functionality is developed
+        // private static object? GetFieldValue(Dictionary<string, object?> row, FieldMapping field)
+        // {
+        //     if (field.StaticValue != null) return field.StaticValue;
+        //     return row.GetValueOrDefault(field.FieldName);
+        // }
 
-        private static object AggregateField(IGrouping<string, Dictionary<string, object?>> group, FieldMapping field)
-        {
-            if (field.StaticValue != null) return field.StaticValue;
-
-            var values = group
-                .Select(r => r.GetValueOrDefault(field.FieldName))
-                .Where(v => v != null)
-                .ToList();
-
-            return field.Aggregation switch
-            {
-                AggregationType.Count => values.Count,
-                AggregationType.CountDistinct => values.Distinct().Count(),
-                AggregationType.Sum => values.Sum(v => Convert.ToDouble(v)),
-                AggregationType.Avg => values.Average(v => Convert.ToDouble(v)),
-                AggregationType.Min => values.Min(v => Convert.ToDouble(v)),
-                AggregationType.Max => values.Max(v => Convert.ToDouble(v)),
-                _ => values.FirstOrDefault() ?? 0
-            };
-        }
+        // TODO: uncomment when GroupByFields functionality is developed
+        // private static object AggregateField(IGrouping<string, Dictionary<string, object?>> group, FieldMapping field)
+        // {
+        //     if (field.StaticValue != null) return field.StaticValue;
+        //     var values = group
+        //         .Select(r => r.GetValueOrDefault(field.FieldName))
+        //         .Where(v => v != null)
+        //         .ToList();
+        //     return field.Aggregation switch
+        //     {
+        //         AggregationType.Count => values.Count,
+        //         AggregationType.CountDistinct => values.Distinct().Count(),
+        //         AggregationType.Sum => values.Sum(v => Convert.ToDouble(v)),
+        //         AggregationType.Avg => values.Average(v => Convert.ToDouble(v)),
+        //         AggregationType.Min => values.Min(v => Convert.ToDouble(v)),
+        //         AggregationType.Max => values.Max(v => Convert.ToDouble(v)),
+        //         _ => values.FirstOrDefault() ?? 0
+        //     };
+        // }
 
         private static bool EvaluateFilter(Dictionary<string, object?> row, FilterGroup filter)
         {
