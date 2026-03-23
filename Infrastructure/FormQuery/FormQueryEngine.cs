@@ -48,10 +48,18 @@ namespace Infrastructure.FormQuery
             var translator = new FormQueryTranslator(schemas, organizationId);
             var (sql, parameters) = translator.Translate(queryAst);
 
-            _logger.LogDebug("Form query translated to SQL: {Sql}", sql);
+            _logger.LogInformation("Form query translated to SQL: {Sql}", sql);
 
             // 5. Execute
-            return await ExecuteSqlAsync(sql, parameters);
+            try
+            {
+                return await ExecuteSqlAsync(sql, parameters);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Form query execution failed. SQL: {Sql}", sql);
+                throw;
+            }
         }
 
         private async Task<Dictionary<string, FormSchema>> ResolveAllSchemasAsync(

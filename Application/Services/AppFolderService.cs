@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Application.DTOs;
 using Application.Common.Pagination;
@@ -5,6 +6,7 @@ using Application.Interfaces.Persistence;
 using Application.Interfaces.Services;
 using Core.Entities;
 using Core.Enums;
+using Core.Models;
 
 namespace Application.Services
 {
@@ -227,18 +229,26 @@ namespace Application.Services
                 {
                     if (graphLookup.TryGetValue(dto.Id, out var config))
                     {
-                        // Execute data source if exists, fallback to static Data JSON
-                        var payload = await _graphService.GetGraphPayloadAsync(config.Id);
+                        // Execute data source if exists, fallback to static Data JSON on failure
+                        GraphPayload? payload = null;
+                        try
+                        {
+                            payload = await _graphService.GetGraphPayloadAsync(config.Id);
+                        }
+                        catch
+                        {
+                            // Data source execution failed — fall back to static config data
+                        }
 
                         dto.Data = new GraphConfigDto
                         {
                             Id = config.Id,
                             Name = config.Name,
-                            ComponentType = payload.ComponentType,
-                            Type = (int)payload.Type,
-                            View = payload.View,
-                            Data = payload.Data,
-                            Meta = payload.Meta,
+                            ComponentType = payload?.ComponentType ?? (config.ComponentType.HasValue ? (int)config.ComponentType.Value : null),
+                            Type = payload != null ? (int)payload.Type : (int)config.Type,
+                            View = payload?.View ?? TryParseJson(config.View),
+                            Data = payload?.Data ?? TryParseJson(config.Data),
+                            Meta = payload?.Meta ?? config.Meta,
                             FiltersParams = config.FiltersParams,
                             IsActive = config.IsActive,
                             CreatedAt = config.CreatedAt,
@@ -289,6 +299,13 @@ namespace Application.Services
             }
 
             return route;
+        }
+
+        private static JsonElement? TryParseJson(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return null;
+            try { return JsonSerializer.Deserialize<JsonElement>(json); }
+            catch { return null; }
         }
 
         private static string Slugify(string name)
