@@ -35,6 +35,7 @@ namespace WebAPI
             });
 
             // Repositories
+            services.AddScoped<IOrganizationRepository, OrganizationRepository>();
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IRoleRepository, RoleRepository>();
             services.AddScoped<IDepartmentRepository, DepartmentRepository>();

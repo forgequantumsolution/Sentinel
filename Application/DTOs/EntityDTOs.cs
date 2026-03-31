@@ -2,6 +2,16 @@ using System;
 
 namespace Application.DTOs
 {
+    public class OrganizationDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Code { get; set; }
+        public string? Description { get; set; }
+        public Guid? ParentOrganizationId { get; set; }
+        public bool IsActive { get; set; }
+    }
+
     public class DepartmentDto
     {
         public Guid Id { get; set; }
