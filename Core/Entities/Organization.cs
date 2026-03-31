@@ -22,6 +22,9 @@ namespace Core.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
 
+        public Guid? ParentOrganizationId { get; set; }
+        public virtual Organization? ParentOrganization { get; set; }
+
         // Navigation properties
         public virtual ICollection<User> Users { get; set; } = new List<User>();
     }

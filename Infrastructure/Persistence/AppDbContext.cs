@@ -1,8 +1,7 @@
-using System.Text.Json;
+using System.Linq.Expressions;
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Core.Entities;
-using Core.Models;
 using Application.Interfaces;
 
 namespace Infrastructure.Persistence
@@ -10,6 +9,9 @@ namespace Infrastructure.Persistence
     public class AppDbContext : DbContext
     {
         private readonly ITenantContext? _tenantContext;
+
+        // EF Core captures this field reference in query filters so the value is re-evaluated per query
+        private Guid? CurrentOrgId => _tenantContext?.OrganizationId;
 
         public AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext? tenantContext = null) : base(options)
         {
@@ -43,297 +45,43 @@ namespace Infrastructure.Persistence
         {
             base.OnModelCreating(modelBuilder);
 
-            // ── Global query filters for multi-tenancy ──
-            var currentOrgId = _tenantContext?.OrganizationId;
+            // Apply all IEntityTypeConfiguration<T> from this assembly
+            modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
 
-            modelBuilder.Entity<User>()
-                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
+            // Auto-apply tenant query filters to all TenantEntity subclasses
+            ApplyTenantQueryFilters(modelBuilder);
+        }
 
-            modelBuilder.Entity<Role>()
-                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
+        /// <summary>
+        /// Scans all entity types registered in the model that inherit from TenantEntity
+        /// and applies a global query filter: e => currentOrgId == null || e.OrganizationId == currentOrgId
+        /// </summary>
+        private void ApplyTenantQueryFilters(ModelBuilder modelBuilder)
+        {
+            // Reference 'this.CurrentOrgId' so EF Core re-evaluates the value per query
+            var dbContextConstant = Expression.Constant(this);
+            var currentOrgIdExpr = Expression.Property(dbContextConstant, nameof(CurrentOrgId));
+            var nullGuid = Expression.Constant(null, typeof(Guid?));
 
-            modelBuilder.Entity<Department>()
-                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
-
-            modelBuilder.Entity<JobTitle>()
-                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
-
-            modelBuilder.Entity<UserGroup>()
-                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
-
-            modelBuilder.Entity<DynamicForm>()
-                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
-
-            modelBuilder.Entity<DynamicFormSubmission>()
-                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
-
-            modelBuilder.Entity<DynamicFormRecord>()
-                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
-
-            modelBuilder.Entity<DynamicFormFieldDefinition>()
-                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
-
-            modelBuilder.Entity<DynamicFormRecordValue>()
-                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
-
-            modelBuilder.Entity<DynamicFormDraft>(entity =>
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
-                entity.HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
+                if (!typeof(TenantEntity).IsAssignableFrom(entityType.ClrType))
+                    continue;
 
-                // One active draft per user per form
-                entity.HasIndex(d => new { d.FormId, d.CreatedById })
-                      .IsUnique()
-                      .HasFilter("\"IsDeleted\" = false");
-            });
+                // Build: (e) => CurrentOrgId == null || e.OrganizationId == CurrentOrgId || e.Organization.ParentOrganizationId == CurrentOrgId
+                var parameter = Expression.Parameter(entityType.ClrType, "e");
+                var orgIdProperty = Expression.Property(parameter, nameof(TenantEntity.OrganizationId));
+                var organizationNav = Expression.Property(parameter, nameof(TenantEntity.Organization));
+                var parentOrgIdProperty = Expression.Property(organizationNav, nameof(Organization.ParentOrganizationId));
 
-            modelBuilder.Entity<Permission>()
-                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
+                var isNull = Expression.Equal(currentOrgIdExpr, nullGuid);
+                var isCurrentOrg = Expression.Equal(orgIdProperty, currentOrgIdExpr);
+                var isParentOrg = Expression.Equal(parentOrgIdProperty, currentOrgIdExpr);
+                var body = Expression.OrElse(isNull, Expression.OrElse(isCurrentOrg, isParentOrg));
 
-            modelBuilder.Entity<Feature>();
-                //.HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
-
-            modelBuilder.Entity<AppPermission>();
-                //.HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
-
-            modelBuilder.Entity<FeaturePermissionAssignment>()
-                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
-
-            modelBuilder.Entity<GraphConfigEntity>()
-                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
-
-            modelBuilder.Entity<GraphDataDefinitionEntity>()
-                .HasQueryFilter(e => currentOrgId == null || e.OrganizationId == currentOrgId);
-
-            // ── Existing configurations ──
-
-            // Role configuration
-            modelBuilder.Entity<Role>(entity =>
-            {
-                entity.HasIndex(u => u.Name).IsUnique();
-
-                entity.HasMany(u => u.Users)
-                      .WithOne(r => r.Role)
-                      .HasForeignKey(u => u.RoleId)
-                      .OnDelete(DeleteBehavior.Restrict);
-            });
-
-            // User configuration
-            modelBuilder.Entity<User>(entity =>
-            {
-                entity.HasIndex(u => u.Email).IsUnique();
-                entity.HasIndex(u => u.RoleId);
-
-                entity.HasOne(u => u.Role)
-                      .WithMany(r => r.Users)
-                      .HasForeignKey(u => u.RoleId)
-                      .OnDelete(DeleteBehavior.Restrict);
-
-                entity.HasOne(u => u.Manager)
-                      .WithMany()
-                      .HasForeignKey(u => u.ManagerId)
-                      .OnDelete(DeleteBehavior.Restrict);
-            });
-
-            // Department configuration
-            modelBuilder.Entity<Department>(entity =>
-            {
-                entity.HasIndex(d => d.Name).IsUnique();
-                entity.HasIndex(d => d.Code).IsUnique();
-                
-                entity.HasOne(d => d.ParentDepartment)
-                      .WithMany(d => d.ChildDepartments)
-                      .HasForeignKey(d => d.ParentDepartmentId)
-                      .OnDelete(DeleteBehavior.Restrict);
-
-                entity.HasMany(d => d.Users)
-                      .WithOne(u => u.Department)
-                      .HasForeignKey(u => u.DepartmentId)
-                      .OnDelete(DeleteBehavior.Restrict);
-            });
-
-            // JobTitle configuration
-            modelBuilder.Entity<JobTitle>(entity =>
-            {
-                entity.HasIndex(jt => jt.Title).IsUnique();
-
-                entity.HasMany(jt => jt.Users)
-                      .WithOne(u => u.JobTitle)
-                      .HasForeignKey(u => u.JobTitleId)
-                      .OnDelete(DeleteBehavior.Restrict);
-            });
-
-            // Configure JSON/CSV serialization for Permission.Allowed
-            modelBuilder.Entity<Permission>()
-                .Property(p => p.Allowed)
-                .HasConversion(
-                    v => string.Join(',', v),
-                    v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
-                );
-
-            // Configure DynamicFormRecord to have 75 generic fields
-            modelBuilder.Entity<DynamicFormRecord>(entity =>
-            {
-                entity.Property(r=>r.SubmissionId).IsRequired();
-
-                entity.HasOne(r => r.Submission)
-                      .WithOne(r => r.Record)
-                      .HasForeignKey<DynamicFormRecord>(r => r.SubmissionId)
-                      .OnDelete(DeleteBehavior.Cascade);
-            });
-
-            // Configure DynamicFormRecordValue (EAV)
-            modelBuilder.Entity<DynamicFormRecordValue>(entity =>
-            {
-                entity.HasIndex(e => new { e.SubmissionId, e.FieldDefinitionId }).IsUnique();
-                entity.HasIndex(e => new { e.FormId, e.FieldDefinitionId });
-            });
-
-            // Configure ActionObject
-            modelBuilder.Entity<ActionObject>(entity =>
-            {
-                entity.HasIndex(ao => ao.Route).IsUnique().HasFilter("\"Route\" IS NOT NULL");
-
-                entity.HasOne(ao => ao.ParentObject)
-                      .WithMany(ao => ao.ChildObjects)
-                      .HasForeignKey(ao => ao.ParentObjectId)
-                      .OnDelete(DeleteBehavior.Restrict);
-            });
-
-            // Configure GraphConfigEntity — View/Data are opaque JSON strings stored as jsonb.
-            // The backend never parses them; it stores and returns them as-is.
-            var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
-            modelBuilder.Entity<GraphConfigEntity>(entity =>
-            {
-                // Identity conversion: string CLR type stored verbatim in jsonb column.
-                entity.Property(e => e.View)
-                    .HasColumnName("View")
-                    .HasColumnType("jsonb")
-                    .HasConversion(
-                        v => v,
-                        v => v ?? "{}",
-                        new ValueComparer<string>(
-                            (a, b) => a == b,
-                            v => v == null ? 0 : v.GetHashCode(),
-                            v => v));
-
-                entity.Property(e => e.Data)
-                    .HasColumnName("Data")
-                    .HasColumnType("jsonb")
-                    .HasConversion(
-                        v => v,
-                        v => v ?? "{}",
-                        new ValueComparer<string>(
-                            (a, b) => a == b,
-                            v => v == null ? 0 : v.GetHashCode(),
-                            v => v));
-
-                entity.Property(e => e.Meta)
-                    .HasColumnName("Meta")
-                    .HasColumnType("jsonb")
-                    .HasConversion(
-                        v => v == null ? null : JsonSerializer.Serialize(v, jsonOptions),
-                        v => v == null ? null : JsonSerializer.Deserialize<Dictionary<string, object>>(v, jsonOptions),
-                        new ValueComparer<Dictionary<string, object>?>(
-                            (a, b) => JsonSerializer.Serialize(a, jsonOptions) == JsonSerializer.Serialize(b, jsonOptions),
-                            v => v == null ? 0 : JsonSerializer.Serialize(v, jsonOptions).GetHashCode(),
-                            v => v == null ? null : JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(v, jsonOptions), jsonOptions)));
-
-                entity.Property(e => e.FiltersParams)
-                    .HasColumnName("FiltersParams")
-                    .HasColumnType("jsonb")
-                    .HasConversion(
-                        v => v == null ? null : JsonSerializer.Serialize(v, jsonOptions),
-                        v => v == null ? null : JsonSerializer.Deserialize<Dictionary<string, object>>(v, jsonOptions),
-                        new ValueComparer<Dictionary<string, object>?>(
-                            (a, b) => JsonSerializer.Serialize(a, jsonOptions) == JsonSerializer.Serialize(b, jsonOptions),
-                            v => v == null ? 0 : JsonSerializer.Serialize(v, jsonOptions).GetHashCode(),
-                            v => v == null ? null : JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(v, jsonOptions), jsonOptions)));
-            });
-
-            // Configure GraphDataDefinitionEntity — serialize JSON as string
-            modelBuilder.Entity<GraphDataDefinitionEntity>(entity =>
-            {
-                entity.Property(e => e.Source)
-                    .HasColumnName("Source")
-                    .HasColumnType("jsonb")
-                    .HasConversion(
-                        v => JsonSerializer.Serialize(v, jsonOptions),
-                        v => JsonSerializer.Deserialize<DataSourceDefinition>(v, jsonOptions) ?? new(),
-                        new ValueComparer<DataSourceDefinition>(
-                            (a, b) => JsonSerializer.Serialize(a, jsonOptions) == JsonSerializer.Serialize(b, jsonOptions),
-                            v => JsonSerializer.Serialize(v, jsonOptions).GetHashCode(),
-                            v => JsonSerializer.Deserialize<DataSourceDefinition>(JsonSerializer.Serialize(v, jsonOptions), jsonOptions) ?? new()));
-
-                entity.Property(e => e.SeriesCalculations)
-                    .HasColumnName("SeriesCalculations")
-                    .HasColumnType("jsonb")
-                    .HasConversion(
-                        v => JsonSerializer.Serialize(v, jsonOptions),
-                        v => JsonSerializer.Deserialize<List<SeriesCalculation>>(v, jsonOptions) ?? new(),
-                        new ValueComparer<List<SeriesCalculation>>(
-                            (a, b) => JsonSerializer.Serialize(a, jsonOptions) == JsonSerializer.Serialize(b, jsonOptions),
-                            v => JsonSerializer.Serialize(v, jsonOptions).GetHashCode(),
-                            v => JsonSerializer.Deserialize<List<SeriesCalculation>>(JsonSerializer.Serialize(v, jsonOptions), jsonOptions) ?? new()));
-
-                entity.Property(e => e.GlobalFilter)
-                    .HasColumnName("GlobalFilter")
-                    .HasColumnType("jsonb")
-                    .HasConversion(
-                        v => v == null ? null : JsonSerializer.Serialize(v, jsonOptions),
-                        v => v == null ? null : JsonSerializer.Deserialize<FilterGroup>(v, jsonOptions),
-                        new ValueComparer<FilterGroup?>(
-                            (a, b) => JsonSerializer.Serialize(a, jsonOptions) == JsonSerializer.Serialize(b, jsonOptions),
-                            v => v == null ? 0 : JsonSerializer.Serialize(v, jsonOptions).GetHashCode(),
-                            v => v == null ? null : JsonSerializer.Deserialize<FilterGroup>(JsonSerializer.Serialize(v, jsonOptions), jsonOptions)));
-
-                entity.Property(e => e.SortRules)
-                    .HasColumnName("SortRules")
-                    .HasColumnType("jsonb")
-                    .HasConversion(
-                        v => v == null ? null : JsonSerializer.Serialize(v, jsonOptions),
-                        v => v == null ? null : JsonSerializer.Deserialize<List<SortRule>>(v, jsonOptions),
-                        new ValueComparer<List<SortRule>?>(
-                            (a, b) => JsonSerializer.Serialize(a, jsonOptions) == JsonSerializer.Serialize(b, jsonOptions),
-                            v => v == null ? 0 : JsonSerializer.Serialize(v, jsonOptions).GetHashCode(),
-                            v => v == null ? null : JsonSerializer.Deserialize<List<SortRule>>(JsonSerializer.Serialize(v, jsonOptions), jsonOptions)));
-            });
-
-            // ── RBAC configurations ──
-
-            // Feature: unique code, hierarchical parent-child
-            modelBuilder.Entity<Feature>(entity =>
-            {
-                entity.HasIndex(f => f.Code).IsUnique();
-
-                entity.HasOne(f => f.ParentFeature)
-                      .WithMany(f => f.ChildFeatures)
-                      .HasForeignKey(f => f.ParentFeatureId)
-                      .OnDelete(DeleteBehavior.Restrict);
-            });
-
-            // AppPermission: unique code
-            modelBuilder.Entity<AppPermission>(entity =>
-            {
-                entity.HasIndex(p => p.Code).IsUnique();
-            });
-
-            // FeaturePermissionAssignment: composite unique index to prevent duplicate grants
-            modelBuilder.Entity<FeaturePermissionAssignment>(entity =>
-            {
-                entity.HasIndex(a => new { a.FeatureId, a.PermissionId, a.AssigneeType, a.AssigneeId })
-                      .IsUnique();
-
-                entity.HasOne(a => a.Feature)
-                      .WithMany(f => f.Assignments)
-                      .HasForeignKey(a => a.FeatureId)
-                      .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(a => a.Permission)
-                      .WithMany(p => p.Assignments)
-                      .HasForeignKey(a => a.PermissionId)
-                      .OnDelete(DeleteBehavior.Cascade);
-            });
+                var lambda = Expression.Lambda(body, parameter);
+                modelBuilder.Entity(entityType.ClrType).HasQueryFilter(lambda);
+            }
         }
 
         // Auto-set OrganizationId on new entities
@@ -363,4 +111,3 @@ namespace Infrastructure.Persistence
         }
     }
 }
-
