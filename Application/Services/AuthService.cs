@@ -82,11 +82,11 @@ namespace Application.Services
                 throw new Exception("Invalid email or password");
             }
 
-            if (user.Status != RequestStatus.Approved)
-            {
-                _logger.LogWarning("Login blocked: User {Email} is not authorized (Status: {Status})", request.Email, user.Status);
-                throw new Exception("Your registration is not authorized");
-            }
+            //if (user.Status != RequestStatus.Approved)
+            //{
+            //    _logger.LogWarning("Login blocked: User {Email} is not authorized (Status: {Status})", request.Email, user.Status);
+            //    throw new Exception("Your registration is not authorized");
+            //}
 
             var token = _tokenService.GenerateJwtToken(user);
             _logger.LogInformation("Login successful for email: {Email}", request.Email);

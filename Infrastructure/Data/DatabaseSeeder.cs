@@ -45,7 +45,9 @@ namespace Infrastructure.Data
                 var sql = await File.ReadAllTextAsync(sqlFilePath);
 
                 var adminHash = passwordHasher.HashPassword("Admin123!");
+                var superAdminHash = passwordHasher.HashPassword("S@cur3Sup3r!2026#Xz");
                 sql = sql.Replace("'AQAAAAIAAYagAAAAEJrO6yvXm5H9p0V1Z2W3X4Y5Z6A7B8C9D0E1F2G3H4I5J6K7L8M9N0O1P2Q3R=='", $"'{adminHash}'");
+                sql = sql.Replace("'__SUPER_ADMIN_HASH__'", $"'{superAdminHash}'");
 
                 await context.Database.ExecuteSqlRawAsync(sql);
             }

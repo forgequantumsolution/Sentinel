@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Core.Entities;
@@ -10,7 +9,7 @@ namespace Infrastructure.Persistence
     {
         private readonly ITenantContext? _tenantContext;
 
-        // EF Core captures this field reference in query filters so the value is re-evaluated per query
+        // EF Core re-evaluates property access on DbContext per query — do NOT inline this
         private Guid? CurrentOrgId => _tenantContext?.OrganizationId;
 
         public AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext? tenantContext = null) : base(options)
@@ -50,38 +49,36 @@ namespace Infrastructure.Persistence
 
             // Auto-apply tenant query filters to all TenantEntity subclasses
             ApplyTenantQueryFilters(modelBuilder);
+
+            // Override Role & User filters to also exclude shadow super-admin
+            modelBuilder.Entity<Role>().HasQueryFilter(
+                e => (CurrentOrgId == null || e.OrganizationId == CurrentOrgId || e.Organization!.ParentOrganizationId == CurrentOrgId)
+                  && e.Name != "super-admin");
+
+            modelBuilder.Entity<User>().HasQueryFilter(
+                e => (CurrentOrgId == null || e.OrganizationId == CurrentOrgId || e.Organization!.ParentOrganizationId == CurrentOrgId)
+                  && e.Role!.Name != "super-admin");
         }
 
-        /// <summary>
-        /// Scans all entity types registered in the model that inherit from TenantEntity
-        /// and applies a global query filter: e => currentOrgId == null || e.OrganizationId == currentOrgId
-        /// </summary>
         private void ApplyTenantQueryFilters(ModelBuilder modelBuilder)
         {
-            // Reference 'this.CurrentOrgId' so EF Core re-evaluates the value per query
-            var dbContextConstant = Expression.Constant(this);
-            var currentOrgIdExpr = Expression.Property(dbContextConstant, nameof(CurrentOrgId));
-            var nullGuid = Expression.Constant(null, typeof(Guid?));
+            var method = GetType().GetMethod(nameof(ApplyTenantFilter), BindingFlags.NonPublic | BindingFlags.Instance)!;
 
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
                 if (!typeof(TenantEntity).IsAssignableFrom(entityType.ClrType))
                     continue;
 
-                // Build: (e) => CurrentOrgId == null || e.OrganizationId == CurrentOrgId || e.Organization.ParentOrganizationId == CurrentOrgId
-                var parameter = Expression.Parameter(entityType.ClrType, "e");
-                var orgIdProperty = Expression.Property(parameter, nameof(TenantEntity.OrganizationId));
-                var organizationNav = Expression.Property(parameter, nameof(TenantEntity.Organization));
-                var parentOrgIdProperty = Expression.Property(organizationNav, nameof(Organization.ParentOrganizationId));
-
-                var isNull = Expression.Equal(currentOrgIdExpr, nullGuid);
-                var isCurrentOrg = Expression.Equal(orgIdProperty, currentOrgIdExpr);
-                var isParentOrg = Expression.Equal(parentOrgIdProperty, currentOrgIdExpr);
-                var body = Expression.OrElse(isNull, Expression.OrElse(isCurrentOrg, isParentOrg));
-
-                var lambda = Expression.Lambda(body, parameter);
-                modelBuilder.Entity(entityType.ClrType).HasQueryFilter(lambda);
+                method.MakeGenericMethod(entityType.ClrType).Invoke(this, [modelBuilder]);
             }
+        }
+
+        private void ApplyTenantFilter<TEntity>(ModelBuilder modelBuilder) where TEntity : TenantEntity
+        {
+            modelBuilder.Entity<TEntity>().HasQueryFilter(
+                e => CurrentOrgId == null
+                  || e.OrganizationId == CurrentOrgId
+                  || e.Organization!.ParentOrganizationId == CurrentOrgId);
         }
 
         // Auto-set OrganizationId on new entities

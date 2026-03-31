@@ -21,8 +21,18 @@ namespace WebAPI
         public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
             // Entity Framework (PostgreSQL)
-            services.AddDbContext<AppDbContext>(options =>
-                options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+            services.AddDbContext<AppDbContext>((sp, options) =>
+            {
+                options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
+
+                var env = sp.GetRequiredService<IHostEnvironment>();
+                if (env.IsDevelopment())
+                {
+                    options.EnableSensitiveDataLogging();
+                    options.EnableDetailedErrors();
+                    options.LogTo(Console.WriteLine, LogLevel.Information);
+                }
+            });
 
             // Repositories
             services.AddScoped<IUserRepository, UserRepository>();

@@ -24,6 +24,7 @@ namespace Infrastructure.Persistence.Repositories
         public async Task<User?> GetByEmailAsync(string email)
         {
             return await _context.Users
+                .IgnoreQueryFilters()
                 .Include(u => u.Role)
                 .Include(u => u.Department)
                 .FirstOrDefaultAsync(u => u.Email == email);
