@@ -40,16 +40,7 @@ namespace Controllers
         public async Task<IActionResult> GetAll([FromQuery] PageRequest pageRequest)
         {
             var pagedForms = await _formRepository.GetAllAsync(pageRequest);
-            var dtos = pagedForms.Items.Select(f => new DynamicFormDto
-            {
-                Id = f.Id,
-                Name = f.Name,
-                Description = f.Description,
-                ConfigJson = f.ConfigJson,
-                IsActive = f.IsActive,
-                CreatedAt = f.CreatedAt,
-                UpdatedAt = f.UpdatedAt
-            });
+            var dtos = pagedForms.Items.Select(MapToDto);
 
             var result = new PagedResult<DynamicFormDto>
             {
@@ -68,17 +59,7 @@ namespace Controllers
             var form = await _formRepository.GetByIdAsync(id);
             if (form == null || form.IsDeleted) return NotFound();
 
-            var dto = new DynamicFormDto
-            {
-                Id = form.Id,
-                Name = form.Name,
-                Description = form.Description,
-                ConfigJson = form.ConfigJson,
-                IsActive = form.IsActive,
-                CreatedAt = form.CreatedAt,
-                UpdatedAt = form.UpdatedAt
-            };
-            return Ok(dto);
+            return Ok(MapToDto(form));
         }
 
         [HttpPost]
@@ -109,17 +90,7 @@ namespace Controllers
 
                 await _formRepository.AddAsync(form);
 
-                var resultDto = new DynamicFormDto
-                {
-                    Id = form.Id,
-                    Name = form.Name,
-                    Description = form.Description,
-                    ConfigJson = form.ConfigJson,
-                    IsActive = form.IsActive,
-                    CreatedAt = form.CreatedAt
-                };
-
-                return CreatedAtAction(nameof(GetById), new { id = form.Id }, resultDto);
+                return CreatedAtAction(nameof(GetById), new { id = form.Id }, MapToDto(form));
             }
             catch (ArgumentException ex)
             {
@@ -518,6 +489,26 @@ namespace Controllers
         }
 
         #region Private Helper Methods
+
+        private static DynamicFormDto MapToDto(DynamicForm form) => new()
+        {
+            Id = form.Id,
+            Name = form.Name,
+            Description = form.Description,
+            ConfigJson = form.ConfigJson,
+            IsActive = form.IsActive,
+            CreatedAt = form.CreatedAt,
+            UpdatedAt = form.UpdatedAt,
+            FieldDefinitions = form.FieldDefinitions?.Select(fd => new DynamicFormFieldDefinitionDto
+            {
+                Id = fd.Id,
+                FieldName = fd.FieldName,
+                FieldId = fd.FieldId,
+                FieldType = fd.FieldType,
+                IsRequired = fd.IsRequired,
+                ValidationRules = fd.ValidationRules
+            }).ToList()
+        };
 
         private Guid? GetCurrentUserId()
         {

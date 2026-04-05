@@ -11,6 +11,17 @@ namespace Application.DTOs
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+        public List<DynamicFormFieldDefinitionDto>? FieldDefinitions { get; set; }
+    }
+
+    public class DynamicFormFieldDefinitionDto
+    {
+        public Guid Id { get; set; }
+        public string FieldName { get; set; }
+        public string FieldId { get; set; }
+        public string FieldType { get; set; }
+        public bool IsRequired { get; set; }
+        public string? ValidationRules { get; set; }
     }
 
     public class CreateDynamicFormFieldDefinitionDto

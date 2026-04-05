@@ -28,6 +28,7 @@ namespace Infrastructure.Persistence.Repositories
             var totalCount = await query.CountAsync();
 
             var items = await query
+                .Include(f => f.FieldDefinitions)
                 .OrderByDescending(f => f.CreatedAt)
                 .Skip(pageRequest.Skip)
                 .Take(pageRequest.PageSize)

@@ -25,10 +25,10 @@ namespace Application.Common
             if (fieldDefinitions == null || fieldDefinitions.Count == 0)
                 throw new ArgumentException("FieldDefinitions are required and cannot be empty.");
 
-            var maxColumnCount = DynamicFormConstants.MaxColumnCount;
-            if (fieldDefinitions.Count > maxColumnCount)
-                throw new ArgumentException(
-                    $"Field definition count ({fieldDefinitions.Count}) exceeds maximum allowed columns ({maxColumnCount}).");
+            // var maxColumnCount = DynamicFormConstants.MaxColumnCount;
+            // if (fieldDefinitions.Count > maxColumnCount)
+            //     throw new ArgumentException(
+            //         $"Field definition count ({fieldDefinitions.Count}) exceeds maximum allowed columns ({maxColumnCount}).");
 
             return fieldDefinitions
                 .Select((fd, index) => new DynamicFormFieldDefinition
