@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Application.DTOs;
 using Core.Entities;
+using Application.Interfaces;
+using Application.Interfaces.Persistence;
 using Application.Interfaces.Services;
 
 namespace Controllers
@@ -10,10 +12,14 @@ namespace Controllers
     public class UsersController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly ITenantContext _tenantContext;
+        private readonly IOrganizationRepository _organizationRepository;
 
-        public UsersController(IUserService userService)
+        public UsersController(IUserService userService, ITenantContext tenantContext, IOrganizationRepository organizationRepository)
         {
             _userService = userService;
+            _tenantContext = tenantContext;
+            _organizationRepository = organizationRepository;
         }
 
         [HttpGet]
@@ -67,6 +73,16 @@ namespace Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateUserRequest request)
         {
+            var currentOrgId = _tenantContext.OrganizationId;
+
+            // If creating user for a different org, validate it's a child of the current org
+            if (request.OrganizationId != null && request.OrganizationId != currentOrgId)
+            {
+                var targetOrg = await _organizationRepository.GetByIdAsync(request.OrganizationId.Value);
+                if (targetOrg == null || targetOrg.ParentOrganizationId != currentOrgId)
+                    return Forbid("You can only create users for your own organization or direct child organizations.");
+            }
+
             var user = new User
             {
                 Name = request.Name,
@@ -78,14 +94,15 @@ namespace Controllers
                 EmployeeId = request.EmployeeId,
                 Status = Core.Enums.RequestStatus.Approved,
                 IsActive = request.IsActive,
+                OrganizationId = request.OrganizationId ?? currentOrgId,
                 CreatedAt = DateTime.UtcNow
             };
 
             await _userService.CreateUserAsync(user, request.Password);
-            
+
             var dto = (UserDto)request;
             dto.Id = user.Id;
-            
+
             return CreatedAtAction(nameof(GetById), new { id = user.Id }, dto);
         }
 

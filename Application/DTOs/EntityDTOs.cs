@@ -71,6 +71,7 @@ namespace Application.DTOs
     public class CreateUserRequest : UserDto
     {
         public string Password { get; set; } = string.Empty;
+        public Guid? OrganizationId { get; set; }
     }
 
     // ── RBAC DTOs ──
