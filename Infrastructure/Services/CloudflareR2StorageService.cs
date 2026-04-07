@@ -41,7 +41,9 @@ namespace Infrastructure.Services
             {
                 BucketName = _bucketName,
                 Key = key,
-                InputStream = fileStream
+                InputStream = fileStream,
+                DisablePayloadSigning = true,
+                DisableDefaultChecksumValidation = true
             });
 
             return key;

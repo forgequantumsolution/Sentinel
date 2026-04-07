@@ -219,7 +219,8 @@ namespace Controllers
             if (file == null || file.Length == 0)
                 return BadRequest("No file provided.");
 
-            if (!Path.GetExtension(file.FileName).Equals(".csv", StringComparison.OrdinalIgnoreCase))
+            var ext = Path.GetExtension(file.FileName);
+            if (!ext.Equals(".xlsx", StringComparison.OrdinalIgnoreCase) && !ext.Equals(".xls", StringComparison.OrdinalIgnoreCase))
                 return BadRequest("Only CSV files are allowed.");
 
             await using var stream = file.OpenReadStream();
