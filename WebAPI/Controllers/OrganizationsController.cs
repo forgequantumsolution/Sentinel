@@ -10,10 +10,12 @@ namespace Controllers
     public class OrganizationsController : ControllerBase
     {
         private readonly IOrganizationRepository _repository;
+        private readonly IRoleRepository _roleRepository;
 
-        public OrganizationsController(IOrganizationRepository repository)
+        public OrganizationsController(IOrganizationRepository repository, IRoleRepository roleRepository)
         {
             _repository = repository;
+            _roleRepository = roleRepository;
         }
 
         [HttpGet]
@@ -63,6 +65,18 @@ namespace Controllers
                 CreatedAt = DateTime.UtcNow
             };
             await _repository.AddAsync(item);
+
+            // Auto-create an admin role for the new organization
+            await _roleRepository.AddAsync(new Role
+            {
+                Name = $"admin",
+                Description = $"Administrator - Full access for {item.Name}",
+                IsDefault = false,
+                IsActive = true,
+                OrganizationId = item.Id,
+                CreatedAt = DateTime.UtcNow
+            });
+
             dto.Id = item.Id;
             return CreatedAtAction(nameof(GetById), new { id = item.Id }, dto);
         }
