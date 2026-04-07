@@ -8,7 +8,7 @@ public class RoleConfiguration : IEntityTypeConfiguration<Role>
 {
     public void Configure(EntityTypeBuilder<Role> builder)
     {
-        builder.HasIndex(u => u.Name).IsUnique();
+        builder.HasIndex(u => new { u.Name, u.OrganizationId }).IsUnique();
 
         builder.HasMany(u => u.Users)
               .WithOne(r => r.Role)
