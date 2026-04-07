@@ -17,6 +17,7 @@ namespace Application.Services
         private readonly IGraphDataDefinitionRepository _graphDataDefinitionRepository;
         private readonly IActionObjectRepository _actionObjectRepository;
         private readonly IFormQueryEngine _formQueryEngine;
+        private readonly ICsvDataSourceService _csvService;
         private readonly ITenantContext _tenantContext;
 
         public GraphService(
@@ -24,12 +25,14 @@ namespace Application.Services
             IGraphDataDefinitionRepository graphDataDefinitionRepository,
             IActionObjectRepository actionObjectRepository,
             IFormQueryEngine formQueryEngine,
+            ICsvDataSourceService csvService,
             ITenantContext tenantContext)
         {
             _graphConfigRepository = graphConfigRepository;
             _graphDataDefinitionRepository = graphDataDefinitionRepository;
             _actionObjectRepository = actionObjectRepository;
             _formQueryEngine = formQueryEngine;
+            _csvService = csvService;
             _tenantContext = tenantContext;
         }
 
@@ -289,6 +292,10 @@ namespace Application.Services
                 var sql = dataDef.Source.Sql.Query;
                 var formRequest = new FormQueryRequest { Sql = sql };
                 queryResult = await _formQueryEngine.ExecuteAsync(formRequest, _tenantContext.OrganizationId);
+            }
+            else if (dataDef.Source.Type == DataSourceType.CsvFile && dataDef.Source.Csv != null)
+            {
+                queryResult = await _csvService.ExecuteAsync(dataDef.Source.Csv);
             }
 
             if (queryResult != null)

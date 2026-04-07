@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Application.DTOs;
 using Application.Common.Pagination;
+using Application.Interfaces;
 using Core.Entities;
 using Application.Interfaces.Services;
 
@@ -11,10 +12,14 @@ namespace Controllers
     public class GraphsController : ControllerBase
     {
         private readonly IGraphService _graphService;
+        private readonly ICsvDataSourceService _csvService;
+        private readonly ITenantContext _tenantContext;
 
-        public GraphsController(IGraphService graphService)
+        public GraphsController(IGraphService graphService, ICsvDataSourceService csvService, ITenantContext tenantContext)
         {
             _graphService = graphService;
+            _csvService = csvService;
+            _tenantContext = tenantContext;
         }
 
         // GraphConfig endpoints
@@ -206,6 +211,21 @@ namespace Controllers
             {
                 return NotFound();
             }
+        }
+
+        [HttpPost("csv/upload")]
+        public async Task<IActionResult> UploadCsv(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("No file provided.");
+
+            if (!Path.GetExtension(file.FileName).Equals(".csv", StringComparison.OrdinalIgnoreCase))
+                return BadRequest("Only CSV files are allowed.");
+
+            await using var stream = file.OpenReadStream();
+            var filePath = await _csvService.UploadAsync(stream, file.FileName, _tenantContext.OrganizationId);
+
+            return Ok(new { filePath });
         }
 
         // ── Mapping helpers ──

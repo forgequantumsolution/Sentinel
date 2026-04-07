@@ -13,6 +13,7 @@ using Application.Interfaces;
 using Application.Interfaces.Persistence;
 using Application.Interfaces.Services;
 using Application.FormQuery;
+using Microsoft.Extensions.Options;
 
 namespace WebAPI
 {
@@ -66,6 +67,29 @@ namespace WebAPI
 
             // Form Query Engine
             services.AddScoped<IFormQueryEngine, FormQueryEngine>();
+
+            // File Storage — transient so provider can vary per tenant in the future
+            services.Configure<Application.Models.FileStorageSettings>(
+                configuration.GetSection(Application.Models.FileStorageSettings.SectionName));
+
+            services.AddTransient<IFileStorageService>(sp =>
+            {
+                var settings = sp.GetRequiredService<IOptions<Application.Models.FileStorageSettings>>();
+                var provider = settings.Value.Provider;
+
+                return provider?.ToLowerInvariant() switch
+                {
+                    "azureblob" => new Infrastructure.Services.AzureBlobStorageService(settings),
+                    "cloudflarer2" => new Infrastructure.Services.CloudflareR2StorageService(settings),
+                    _ => new Infrastructure.Services.LocalFileStorageService(settings)
+                };
+            });
+
+            // CSV Data Source
+            services.AddScoped<ICsvDataSourceService, Infrastructure.Services.CsvDataSourceService>();
+
+            // Excel Parser
+            services.AddScoped<IExcelParserService, Infrastructure.Services.ExcelParserService>();
 
             return services;
         }

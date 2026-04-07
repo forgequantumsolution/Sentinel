@@ -20,6 +20,7 @@ namespace Controllers
         private readonly IDynamicFormSubmissionRepository _submissionRepository;
         private readonly IDynamicFormDraftRepository _draftRepository;
         private readonly IBulkUploadService _bulkUploadService;
+        private readonly IExcelParserService _excelParser;
         private readonly Infrastructure.Persistence.AppDbContext _context;
 
         public DynamicFormsController(
@@ -27,12 +28,14 @@ namespace Controllers
             IDynamicFormSubmissionRepository submissionRepository,
             IDynamicFormDraftRepository draftRepository,
             IBulkUploadService bulkUploadService,
+            IExcelParserService excelParser,
             Infrastructure.Persistence.AppDbContext context)
         {
             _formRepository = formRepository;
             _submissionRepository = submissionRepository;
             _draftRepository = draftRepository;
             _bulkUploadService = bulkUploadService;
+            _excelParser = excelParser;
             _context = context;
         }
 
@@ -99,6 +102,18 @@ namespace Controllers
         }
 
         /// <summary>
+        /// Downloads a blank Excel template for bulk creating dynamic forms.
+        /// Sheet "Forms" has columns: Name, Description, ConfigJson, IsActive.
+        /// Sheet "FieldDefinitions" has columns: FormName, FieldName, FieldId, FieldType, IsRequired, ValidationRules.
+        /// </summary>
+        [HttpGet("bulk/template")]
+        public IActionResult DownloadBulkTemplate()
+        {
+            var bytes = _excelParser.GenerateBulkCreateTemplate();
+            return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "DynamicForms_BulkCreate_Template.xlsx");
+        }
+
+        /// <summary>
         /// Bulk upload dynamic forms. The forms are processed in a background job to avoid blocking the thread.
         /// </summary>
         /// <param name="dto">The bulk create DTO containing an array of forms to create.</param>
@@ -128,6 +143,68 @@ namespace Controllers
             {
                 return BadRequest(ex.Message);
             }
+        }
+
+        /// <summary>
+        /// Bulk upload dynamic forms from an Excel file (.xlsx).
+        /// Each sheet becomes a form; row 1 headers become field definitions.
+        /// </summary>
+        [HttpPost("bulk/excel")]
+        [Authorize(Roles = "sys-admin")]
+        public async Task<IActionResult> BulkCreateFromExcel(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("No file provided.");
+
+            var ext = Path.GetExtension(file.FileName);
+            if (!ext.Equals(".xlsx", StringComparison.OrdinalIgnoreCase) && !ext.Equals(".xls", StringComparison.OrdinalIgnoreCase))
+                return BadRequest("Only Excel files (.xlsx, .xls) are allowed.");
+
+            await using var stream = file.OpenReadStream();
+            var dto = await _excelParser.ParseAsync(stream);
+
+            if (dto.Forms.Count == 0)
+                return BadRequest("No sheets with data found in the Excel file.");
+
+            var userId = GetCurrentUserId();
+
+            var response = await _bulkUploadService.CreateBulkUploadJobAsync(dto, userId);
+            return Accepted(response);
+        }
+
+        /// <summary>
+        /// Downloads form submission data as an Excel file.
+        /// </summary>
+        [HttpGet("{id}/export")]
+        public async Task<IActionResult> ExportToExcel(Guid id)
+        {
+            var form = await _formRepository.GetByIdAsync(id);
+            if (form == null || form.IsDeleted) return NotFound();
+
+            var fieldDefs = form.FieldDefinitions?.Select(fd => new DynamicFormFieldDefinitionDto
+            {
+                Id = fd.Id,
+                FieldName = fd.FieldName,
+                FieldId = fd.FieldId,
+                FieldType = fd.FieldType,
+                IsRequired = fd.IsRequired,
+                ValidationRules = fd.ValidationRules
+            }).ToList() ?? new();
+
+            if (fieldDefs.Count == 0)
+                return BadRequest("This form has no field definitions.");
+
+            var recordValues = await _context.DynamicFormRecordValues
+                .Where(rv => rv.FormId == id && !rv.IsDeleted)
+                .ToListAsync();
+
+            var rows = recordValues
+                .GroupBy(rv => rv.SubmissionId)
+                .Select(g => g.ToDictionary(rv => rv.FieldDefinitionId, rv => rv.Value))
+                .ToList();
+
+            var bytes = await _excelParser.GenerateExcelAsync(form.Name, fieldDefs, rows);
+            return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"{form.Name}_data.xlsx");
         }
 
         /// <summary>
