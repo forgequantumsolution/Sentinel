@@ -3,6 +3,12 @@ using Core.Models;
 
 namespace Application.Interfaces.Services
 {
+    public class CsvUploadResult
+    {
+        public Guid FileId { get; set; }
+        public List<string> Columns { get; set; } = new();
+    }
+
     public interface ICsvDataSourceService
     {
         /// <summary>
@@ -11,8 +17,9 @@ namespace Application.Interfaces.Services
         Task<FormQueryResult> ExecuteAsync(CsvSourceConfig config);
 
         /// <summary>
-        /// Saves an uploaded CSV file and returns the stored file path.
+        /// Uploads a CSV file, parses its column headers, persists file metadata,
+        /// and returns the new file id and the parsed column names.
         /// </summary>
-        Task<string> UploadAsync(Stream fileStream, string fileName, Guid? organizationId);
+        Task<CsvUploadResult> UploadAsync(Stream fileStream, string fileName, Guid? organizationId);
     }
 }

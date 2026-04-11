@@ -39,6 +39,7 @@ namespace Infrastructure.Persistence
         public DbSet<GraphDataDefinitionEntity> GraphDataDefinitions { get; set; }
         public DbSet<BulkUploadJob> BulkUploadJobs { get; set; }
         public DbSet<ActionObject> ActionObjects { get; set; }
+        public DbSet<UploadedFile> UploadedFiles { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

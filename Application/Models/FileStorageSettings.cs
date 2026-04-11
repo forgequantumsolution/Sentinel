@@ -4,7 +4,7 @@ namespace Application.Models
     {
         public const string SectionName = "FileStorage";
 
-        /// <summary>"Local", "AzureBlob", or "CloudflareR2"</summary>
+        /// <summary>"Local", "AzureBlob", "CloudflareR2", or "AwsS3"</summary>
         public string Provider { get; set; } = "Local";
 
         /// <summary>Root path for local file storage.</summary>
@@ -27,5 +27,17 @@ namespace Application.Models
 
         /// <summary>R2 bucket name.</summary>
         public string? CloudflareBucket { get; set; } = "uploads";
+
+        /// <summary>AWS access key ID.</summary>
+        public string? AwsAccessKeyId { get; set; }
+
+        /// <summary>AWS secret access key.</summary>
+        public string? AwsSecretAccessKey { get; set; }
+
+        /// <summary>AWS region (e.g. us-east-1).</summary>
+        public string? AwsRegion { get; set; }
+
+        /// <summary>AWS S3 bucket name.</summary>
+        public string? AwsBucket { get; set; } = "uploads";
     }
 }

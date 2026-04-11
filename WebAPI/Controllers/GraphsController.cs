@@ -219,14 +219,15 @@ namespace Controllers
             if (file == null || file.Length == 0)
                 return BadRequest("No file provided.");
 
-            var ext = Path.GetExtension(file.FileName);
-            if (!ext.Equals(".xlsx", StringComparison.OrdinalIgnoreCase) && !ext.Equals(".xls", StringComparison.OrdinalIgnoreCase))
-                return BadRequest("Only CSV files are allowed.");
+            var ext = Path.GetExtension(file.FileName)?.ToLowerInvariant();
+            var allowedExts = new[] { ".csv", ".xlsx", ".xls" };
+            if (!allowedExts.Contains(ext))
+                return BadRequest("Only CSV and Excel files (.csv, .xlsx, .xls) are allowed.");
 
             await using var stream = file.OpenReadStream();
-            var filePath = await _csvService.UploadAsync(stream, file.FileName, _tenantContext.OrganizationId);
+            var result = await _csvService.UploadAsync(stream, file.FileName, _tenantContext.OrganizationId);
 
-            return Ok(new { filePath });
+            return Ok(new { fileId = result.FileId, columns = result.Columns });
         }
 
         // ── Mapping helpers ──

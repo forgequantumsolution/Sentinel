@@ -51,6 +51,7 @@ namespace WebAPI
             services.AddScoped<IDynamicPermissionRuleRepository, DynamicPermissionRuleRepository>();
             services.AddScoped<IBulkUploadJobRepository, BulkUploadJobRepository>();
             services.AddScoped<IActionObjectRepository, ActionObjectRepository>();
+            services.AddScoped<IUploadedFileRepository, UploadedFileRepository>();
 
             // Security
             services.AddScoped<IPasswordHasher, PasswordHasher>();
@@ -81,6 +82,7 @@ namespace WebAPI
                 {
                     "azureblob" => new Infrastructure.Services.AzureBlobStorageService(settings),
                     "cloudflarer2" => new Infrastructure.Services.CloudflareR2StorageService(settings),
+                    "awss3" => new Infrastructure.Services.AwsS3StorageService(settings),
                     _ => new Infrastructure.Services.LocalFileStorageService(settings)
                 };
             });
