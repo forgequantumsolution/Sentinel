@@ -41,6 +41,13 @@ namespace Application.Services
 
         public async Task<DynamicGroupingRuleDto> CreateAsync(CreateDynamicGroupingRuleRequest request)
         {
+            var rule = BuildRuleTree(request);
+            await _ruleRepository.AddAsync(rule);
+            return MapToDto(rule);
+        }
+
+        private static DynamicGroupingRule BuildRuleTree(CreateDynamicGroupingRuleRequest request, Guid? parentId = null)
+        {
             var rule = new DynamicGroupingRule
             {
                 Name = request.Name,
@@ -50,52 +57,21 @@ namespace Application.Services
                 Value = request.Value,
                 IsDynamicValue = request.IsDynamicValue,
                 RuleType = request.RuleType,
-                ParentRuleId = request.ParentRuleId,
+                ParentRuleId = parentId ?? request.ParentRuleId,
                 UserGroupId = request.UserGroupId,
                 AutoAssign = request.AutoAssign,
                 IsActive = request.IsActive,
                 CreatedAt = DateTime.UtcNow
             };
 
-            // Handle child rules if provided
             if (request.ChildRules != null && request.ChildRules.Any())
             {
-                var childRules = new List<DynamicGroupingRule>();
-                foreach (var childRequest in request.ChildRules)
-                {
-                    var childRule = new DynamicGroupingRule
-                    {
-                        Name = childRequest.Name,
-                        Description = childRequest.Description,
-                        Field = childRequest.Field,
-                        Operator = childRequest.Operator,
-                        Value = childRequest.Value,
-                        IsDynamicValue = childRequest.IsDynamicValue,
-                        RuleType = childRequest.RuleType,
-                        ParentRuleId = rule.Id, // Will be set after rule is saved
-                        UserGroupId = childRequest.UserGroupId,
-                        AutoAssign = childRequest.AutoAssign,
-                        IsActive = childRequest.IsActive,
-                        CreatedAt = DateTime.UtcNow
-                    };
-                    childRules.Add(childRule);
-                }
-                rule.ChildRules = childRules;
+                rule.ChildRules = request.ChildRules
+                    .Select(child => BuildRuleTree(child, rule.Id))
+                    .ToList();
             }
 
-            await _ruleRepository.AddAsync(rule);
-            
-            // Update child rules with parent ID
-            if (rule.ChildRules != null && rule.ChildRules.Any())
-            {
-                foreach (var child in rule.ChildRules)
-                {
-                    child.ParentRuleId = rule.Id;
-                    await _ruleRepository.UpdateAsync(child);
-                }
-            }
-
-            return MapToDto(rule);
+            return rule;
         }
 
         public async Task<DynamicGroupingRuleDto> UpdateAsync(Guid id, UpdateDynamicGroupingRuleRequest request)
@@ -104,6 +80,14 @@ namespace Application.Services
             if (rule == null)
                 throw new KeyNotFoundException($"Dynamic grouping rule with ID {id} not found");
 
+            // Soft-delete existing child tree
+            if (rule.ChildRules != null && rule.ChildRules.Any())
+            {
+                foreach (var child in rule.ChildRules)
+                    await SoftDeleteRecursiveAsync(child.Id);
+            }
+
+            // Update root rule properties
             rule.Name = request.Name;
             rule.Description = request.Description;
             rule.Field = request.Field;
@@ -117,8 +101,34 @@ namespace Application.Services
             rule.IsActive = request.IsActive;
             rule.UpdatedAt = DateTime.UtcNow;
 
+            // Build and attach new child tree
+            if (request.ChildRules != null && request.ChildRules.Any())
+            {
+                rule.ChildRules = request.ChildRules
+                    .Select(child => BuildRuleTree(child, rule.Id))
+                    .ToList();
+            }
+            else
+            {
+                rule.ChildRules = new List<DynamicGroupingRule>();
+            }
+
             await _ruleRepository.UpdateAsync(rule);
             return MapToDto(rule);
+        }
+
+        private async Task SoftDeleteRecursiveAsync(Guid ruleId)
+        {
+            var rule = await _ruleRepository.GetByIdAsync(ruleId);
+            if (rule == null) return;
+
+            if (rule.ChildRules != null)
+            {
+                foreach (var child in rule.ChildRules)
+                    await SoftDeleteRecursiveAsync(child.Id);
+            }
+
+            await _ruleRepository.DeleteAsync(ruleId);
         }
 
         public async Task DeleteAsync(Guid id)

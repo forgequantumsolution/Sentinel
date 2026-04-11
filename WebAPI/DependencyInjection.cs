@@ -83,9 +83,13 @@ namespace WebAPI
                     "azureblob" => new Infrastructure.Services.AzureBlobStorageService(settings),
                     "cloudflarer2" => new Infrastructure.Services.CloudflareR2StorageService(settings),
                     "awss3" => new Infrastructure.Services.AwsS3StorageService(settings),
+                    "googlecloudstorage" => new Infrastructure.Services.GoogleCloudStorageService(settings),
                     _ => new Infrastructure.Services.LocalFileStorageService(settings)
                 };
             });
+
+            // Encryption
+            services.AddSingleton<IEncryptionService, Infrastructure.Services.AesEncryptionService>();
 
             // CSV Data Source
             services.AddScoped<ICsvDataSourceService, Infrastructure.Services.CsvDataSourceService>();

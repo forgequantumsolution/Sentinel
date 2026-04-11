@@ -57,6 +57,7 @@ namespace Application.DTOs
         public Guid? UserGroupId { get; set; }
         public bool AutoAssign { get; set; } = true;
         public bool IsActive { get; set; } = true;
+        public List<CreateDynamicGroupingRuleRequest>? ChildRules { get; set; }
     }
 
     public class DynamicPermissionRuleDto

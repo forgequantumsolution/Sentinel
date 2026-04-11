@@ -12,34 +12,45 @@ namespace Infrastructure.Services
 {
     public class CsvDataSourceService : ICsvDataSourceService
     {
-        private readonly IFileStorageService _fileStorage;
+        private readonly IFileStorageService _defaultFileStorage;
         private readonly IUploadedFileRepository _uploadedFileRepository;
+        private readonly IEncryptionService _encryption;
         private readonly FileStorageSettings _storageSettings;
 
         public CsvDataSourceService(
             IFileStorageService fileStorage,
             IUploadedFileRepository uploadedFileRepository,
+            IEncryptionService encryption,
             IOptions<FileStorageSettings> storageSettings)
         {
-            _fileStorage = fileStorage;
+            _defaultFileStorage = fileStorage;
             _uploadedFileRepository = uploadedFileRepository;
+            _encryption = encryption;
             _storageSettings = storageSettings.Value;
         }
 
         public async Task<FormQueryResult> ExecuteAsync(CsvSourceConfig config)
         {
             if (string.IsNullOrWhiteSpace(config.FilePath))
-                throw new ArgumentException("File path is required.");
+                throw new ArgumentException("File ID is required.");
 
-            var ext = Path.GetExtension(config.FilePath)?.ToLowerInvariant();
+            if (!Guid.TryParse(config.FilePath, out var fileId))
+                throw new ArgumentException("Invalid file ID.");
+
+            var uploadedFile = await _uploadedFileRepository.GetByIdAsync(fileId)
+                ?? throw new KeyNotFoundException($"Uploaded file with ID {fileId} not found.");
+
+            var storage = ResolveStorageProvider(uploadedFile);
+
+            var ext = Path.GetExtension(uploadedFile.FileName)?.ToLowerInvariant();
             return ext is ".xlsx" or ".xls"
-                ? await ExecuteExcelAsync(config)
-                : await ExecuteCsvAsync(config);
+                ? await ExecuteExcelAsync(storage, uploadedFile.FilePath, config)
+                : await ExecuteCsvAsync(storage, uploadedFile.FilePath, config);
         }
 
-        private async Task<FormQueryResult> ExecuteCsvAsync(CsvSourceConfig config)
+        private async Task<FormQueryResult> ExecuteCsvAsync(IFileStorageService storage, string storedPath, CsvSourceConfig config)
         {
-            await using var stream = await _fileStorage.ReadAsync(config.FilePath!);
+            await using var stream = await storage.ReadAsync(storedPath);
             using var reader = new StreamReader(stream);
             var content = await reader.ReadToEndAsync();
             var lines = content.Split('\n', StringSplitOptions.None);
@@ -88,11 +99,11 @@ namespace Infrastructure.Services
             };
         }
 
-        private async Task<FormQueryResult> ExecuteExcelAsync(CsvSourceConfig config)
+        private async Task<FormQueryResult> ExecuteExcelAsync(IFileStorageService storage, string storedPath, CsvSourceConfig config)
         {
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
-            await using var stream = await _fileStorage.ReadAsync(config.FilePath!);
+            await using var stream = await storage.ReadAsync(storedPath);
             using var ms = new MemoryStream();
             await stream.CopyToAsync(ms);
             ms.Position = 0;
@@ -144,6 +155,42 @@ namespace Infrastructure.Services
             };
         }
 
+        /// <summary>
+        /// Resolves the correct storage provider from the uploaded file's stored provider name and config.
+        /// Falls back to the default (current) provider if the stored config can't be deserialized.
+        /// </summary>
+        private IFileStorageService ResolveStorageProvider(UploadedFile uploadedFile)
+        {
+            if (string.IsNullOrWhiteSpace(uploadedFile.StorageConfigJson)
+                || string.IsNullOrWhiteSpace(uploadedFile.StorageProvider))
+                return _defaultFileStorage;
+
+            // If the stored provider matches the current default, reuse it
+            if (uploadedFile.StorageProvider.Equals(_storageSettings.Provider, StringComparison.OrdinalIgnoreCase))
+                return _defaultFileStorage;
+
+            // Decrypt and rebuild settings from the snapshot stored at upload time
+            var decryptedJson = _encryption.Decrypt(uploadedFile.StorageConfigJson);
+            var storedSettings = JsonSerializer.Deserialize<FileStorageSettings>(
+                decryptedJson,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (storedSettings == null)
+                return _defaultFileStorage;
+
+            storedSettings.Provider = uploadedFile.StorageProvider;
+            var options = Options.Create(storedSettings);
+
+            return uploadedFile.StorageProvider.ToLowerInvariant() switch
+            {
+                "azureblob" => new AzureBlobStorageService(options),
+                "cloudflarer2" => new CloudflareR2StorageService(options),
+                "awss3" => new AwsS3StorageService(options),
+                "googlecloudstorage" => new GoogleCloudStorageService(options),
+                _ => new LocalFileStorageService(options)
+            };
+        }
+
         public async Task<CsvUploadResult> UploadAsync(Stream fileStream, string fileName, Guid? organizationId)
         {
             // Buffer the upload so we can both store it and parse headers
@@ -154,7 +201,7 @@ namespace Infrastructure.Services
             // Upload to storage
             using var uploadStream = new MemoryStream(fileBytes);
             var folder = $"csv/{organizationId?.ToString() ?? "shared"}";
-            var storedPath = await _fileStorage.UploadAsync(uploadStream, folder, fileName);
+            var storedPath = await _defaultFileStorage.UploadAsync(uploadStream, folder, fileName);
 
             // Parse column headers based on file type
             var ext = Path.GetExtension(fileName)?.ToLowerInvariant();
@@ -163,14 +210,7 @@ namespace Infrastructure.Services
                 : ParseCsvHeaderColumns(fileBytes);
 
             // Snapshot storage config (excluding sensitive secrets)
-            var storageConfigSnapshot = JsonSerializer.Serialize(new
-            {
-                provider = _storageSettings.Provider,
-                localPath = _storageSettings.LocalPath,
-                azureBlobContainer = _storageSettings.AzureBlobContainer,
-                cloudflareAccountId = _storageSettings.CloudflareAccountId,
-                cloudflareBucket = _storageSettings.CloudflareBucket
-            });
+            var storageConfigSnapshot = _encryption.Encrypt(JsonSerializer.Serialize(_storageSettings));
 
             // Persist metadata
             var entity = new UploadedFile

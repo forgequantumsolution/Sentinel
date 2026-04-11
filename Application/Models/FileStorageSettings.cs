@@ -4,7 +4,7 @@ namespace Application.Models
     {
         public const string SectionName = "FileStorage";
 
-        /// <summary>"Local", "AzureBlob", "CloudflareR2", or "AwsS3"</summary>
+        /// <summary>"Local", "AzureBlob", "CloudflareR2", "AwsS3", or "GoogleCloudStorage"</summary>
         public string Provider { get; set; } = "Local";
 
         /// <summary>Root path for local file storage.</summary>
@@ -39,5 +39,14 @@ namespace Application.Models
 
         /// <summary>AWS S3 bucket name.</summary>
         public string? AwsBucket { get; set; } = "uploads";
+
+        /// <summary>GCP service account JSON credential (the full JSON string or file path).</summary>
+        public string? GcpCredentialJson { get; set; }
+
+        /// <summary>GCP project ID.</summary>
+        public string? GcpProjectId { get; set; }
+
+        /// <summary>Google Cloud Storage bucket name.</summary>
+        public string? GcpBucket { get; set; } = "uploads";
     }
 }
