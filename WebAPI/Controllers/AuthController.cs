@@ -91,23 +91,25 @@ namespace Controllers
                     return NotFound("User not found");
                 }
 
-                // Get user's feature-permission assignments
-                var assignments = await _rbacService.GetUserAssignmentsAsync(userId);
+                // Get user's action object permission assignments
+                var pagedAssignments = await _rbacService.GetUserAssignmentsAsync(userId, new Application.Common.Pagination.PageRequest { Page = 1, PageSize = 100 });
 
                 // Map to DTOs
-                var featuresPermissions = assignments
-                    .Where(a => a.IsActive && !a.IsDeleted)
-                    .Select(a => new FeaturePermissionDto
+                var permissions = pagedAssignments.Items
+                    .Select(a => new ActionObjectPermissionDto
                     {
-                        FeatureId = a.Feature.Id,
-                        Feature = new FeatureDto
+                        ActionObjectId = a.ActionObject.Id,
+                        ActionObject = new ActionObjectDto
                         {
-                            Id = a.Feature.Id,
-                            Name = a.Feature.Name,
-                            Code = a.Feature.Code,
-                            Description = a.Feature.Description,
-                            ParentFeatureId = a.Feature.ParentFeatureId,
-                            IsActive = a.Feature.IsActive
+                            Id = a.ActionObject.Id,
+                            Name = a.ActionObject.Name,
+                            Code = a.ActionObject.Code,
+                            Description = a.ActionObject.Description,
+                            ObjectType = a.ActionObject.ObjectType.ToString(),
+                            Route = a.ActionObject.Route,
+                            ParentObjectId = a.ActionObject.ParentObjectId,
+                            IsActive = a.ActionObject.IsActive,
+                            CreatedAt = a.ActionObject.CreatedAt
                         },
                         PermissionId = a.Permission.Id,
                         Permission = new AppPermissionDto
@@ -133,7 +135,7 @@ namespace Controllers
                     user.Location,
                     user.EmployeeId,
                     user.Status,
-                    FeaturesPermissions = featuresPermissions
+                    Permissions = permissions
                 });
             }
             catch (Exception ex)

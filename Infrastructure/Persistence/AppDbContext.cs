@@ -41,6 +41,7 @@ namespace Infrastructure.Persistence
         public DbSet<ActionObject> ActionObjects { get; set; }
         public DbSet<UploadedFile> UploadedFiles { get; set; }
         public DbSet<UserGroupMembership> UserGroupMemberships { get; set; }
+        public DbSet<ActionObjectPermissionAssignment> ActionObjectPermissionAssignments { get; set; }
         public DbSet<ActionObjectPermissionSet> ActionObjectPermissionSets { get; set; }
         public DbSet<ActionObjectPermissionSetItem> ActionObjectPermissionSetItems { get; set; }
 
@@ -53,6 +54,10 @@ namespace Infrastructure.Persistence
 
             // Auto-apply tenant query filters to all TenantEntity subclasses
             ApplyTenantQueryFilters(modelBuilder);
+
+            // ActionObject: show global (NULL org) + current org's records
+            modelBuilder.Entity<ActionObject>().HasQueryFilter(
+                e => CurrentOrgId == null || e.OrganizationId == null || e.OrganizationId == CurrentOrgId);
 
             // Override Role & User filters to also exclude shadow super-admin
             modelBuilder.Entity<Role>().HasQueryFilter(

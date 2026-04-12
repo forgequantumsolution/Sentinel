@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Application.Common.Pagination;
 using Application.Interfaces.Services;
 using Core.Entities;
 using Core.Enums;
@@ -16,49 +17,41 @@ namespace Infrastructure.Services
         }
 
         // ════════════════════════════════════════════
-        //  Feature CRUD
+        //  ActionObject Queries
         // ════════════════════════════════════════════
 
-        public async Task<Feature> CreateFeatureAsync(Feature feature)
+        public async Task<PagedResult<ActionObject>> GetActionObjectsAsync(Guid? parentId, PageRequest pageRequest)
         {
-            await _context.Features.AddAsync(feature);
-            await _context.SaveChangesAsync();
-            return feature;
-        }
+            var query = _context.ActionObjects
+                .Include(x => x.ChildObjects)
+                .Where(a => !a.IsDeleted && a.IsActive && a.ParentObjectId == parentId)
+                .Where(a => a.ObjectType == ObjectType.Folder || a.ObjectType == ObjectType.Feature)
+                .OrderBy(a => a.SortOrder);
 
-        public async Task<Feature?> GetFeatureByIdAsync(Guid id)
-        {
-            return await _context.Features
-                .Include(f => f.ChildFeatures)
-                .FirstOrDefaultAsync(f => f.Id == id && !f.IsDeleted);
-        }
+            var totalCount = await query.CountAsync();
+            var items = await query.Skip(pageRequest.Skip).Take(pageRequest.PageSize).ToListAsync();
 
-        public async Task<IEnumerable<Feature>> GetAllFeaturesAsync()
-        {
-            return await _context.Features
-                .Where(f => !f.IsDeleted)
-                .Include(f => f.ChildFeatures)
-                .OrderBy(f => f.Name)
+            // Single query: find which of these items have active children
+            var itemIds = items.Select(i => i.Id).ToList();
+            var idsWithChildren = await _context.ActionObjects
+                .Where(a => a.ParentObjectId != null && itemIds.Contains(a.ParentObjectId.Value) && a.IsActive && !a.IsDeleted)
+                .Select(a => a.ParentObjectId!.Value)
+                .Distinct()
                 .ToListAsync();
-        }
 
-        public async Task UpdateFeatureAsync(Feature feature)
-        {
-            feature.UpdatedAt = DateTime.UtcNow;
-            _context.Features.Update(feature);
-            await _context.SaveChangesAsync();
-        }
-
-        public async Task DeleteFeatureAsync(Guid id)
-        {
-            var feature = await _context.Features.FindAsync(id);
-            if (feature != null)
+            var hasChildrenSet = new HashSet<Guid>(idsWithChildren);
+            foreach (var item in items)
             {
-                feature.IsDeleted = true;
-                feature.IsActive = false;
-                feature.DeletedAt = DateTime.UtcNow;
-                await _context.SaveChangesAsync();
+                item.HasChildren = hasChildrenSet.Contains(item.Id);
             }
+
+            return new PagedResult<ActionObject>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = pageRequest.Page,
+                PageSize = pageRequest.PageSize
+            };
         }
 
         // ════════════════════════════════════════════
@@ -78,12 +71,22 @@ namespace Infrastructure.Services
                 .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
         }
 
-        public async Task<IEnumerable<AppPermission>> GetAllPermissionsAsync()
+        public async Task<PagedResult<AppPermission>> GetAllPermissionsAsync(PageRequest pageRequest)
         {
-            return await _context.AppPermissions
+            var query = _context.AppPermissions
                 .Where(p => !p.IsDeleted)
-                .OrderBy(p => p.Name)
-                .ToListAsync();
+                .OrderBy(p => p.Name);
+
+            var totalCount = await query.CountAsync();
+            var items = await query.Skip(pageRequest.Skip).Take(pageRequest.PageSize).ToListAsync();
+
+            return new PagedResult<AppPermission>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = pageRequest.Page,
+                PageSize = pageRequest.PageSize
+            };
         }
 
         public async Task UpdatePermissionAsync(AppPermission permission)
@@ -109,10 +112,10 @@ namespace Infrastructure.Services
         //  Assignment / Revocation
         // ════════════════════════════════════════════
 
-        public async Task<FeaturePermissionAssignment> AssignAsync(
-            Guid featureId, Guid permissionId, AssigneeType assigneeType, Guid assigneeId)
+        public async Task<ActionObjectPermissionAssignment> AssignAsync(
+            Guid actionObjectId, Guid permissionId, AssigneeType assigneeType, Guid assigneeId)
         {
-            // ── Business rule: user can only get what their org already has ──
+            // Business rule: user can only get what their org already has
             if (assigneeType == AssigneeType.User)
             {
                 var user = await _context.Users
@@ -125,10 +128,10 @@ namespace Infrastructure.Services
                 if (!user.OrganizationId.HasValue)
                     throw new InvalidOperationException("User does not belong to any organization.");
 
-                var orgHasAccess = await _context.FeaturePermissionAssignments
+                var orgHasAccess = await _context.ActionObjectPermissionAssignments
                     .IgnoreQueryFilters()
                     .AnyAsync(a =>
-                        a.FeatureId == featureId &&
+                        a.ActionObjectId == actionObjectId &&
                         a.PermissionId == permissionId &&
                         a.AssigneeType == AssigneeType.Organization &&
                         a.AssigneeId == user.OrganizationId.Value &&
@@ -136,21 +139,20 @@ namespace Infrastructure.Services
 
                 if (!orgHasAccess)
                     throw new InvalidOperationException(
-                        "Cannot assign this feature-permission to the user because " +
+                        "Cannot assign this permission to the user because " +
                         "their organization does not have access to it.");
             }
 
             // Check for existing assignment
-            var existing = await _context.FeaturePermissionAssignments
+            var existing = await _context.ActionObjectPermissionAssignments
                 .FirstOrDefaultAsync(a =>
-                    a.FeatureId == featureId &&
+                    a.ActionObjectId == actionObjectId &&
                     a.PermissionId == permissionId &&
                     a.AssigneeType == assigneeType &&
                     a.AssigneeId == assigneeId && !a.IsDeleted);
 
             if (existing != null)
             {
-                // Reactivate it if it was previously deactivated
                 if (!existing.IsActive)
                 {
                     existing.IsActive = true;
@@ -160,26 +162,26 @@ namespace Infrastructure.Services
                 return existing;
             }
 
-            var assignment = new FeaturePermissionAssignment
+            var assignment = new ActionObjectPermissionAssignment
             {
-                FeatureId = featureId,
+                ActionObjectId = actionObjectId,
                 PermissionId = permissionId,
                 AssigneeType = assigneeType,
                 AssigneeId = assigneeId,
                 CreatedAt = DateTime.UtcNow
             };
 
-            await _context.FeaturePermissionAssignments.AddAsync(assignment);
+            await _context.ActionObjectPermissionAssignments.AddAsync(assignment);
             await _context.SaveChangesAsync();
             return assignment;
         }
 
         public async Task RevokeAsync(
-            Guid featureId, Guid permissionId, AssigneeType assigneeType, Guid assigneeId)
+            Guid actionObjectId, Guid permissionId, AssigneeType assigneeType, Guid assigneeId)
         {
-            var assignment = await _context.FeaturePermissionAssignments
+            var assignment = await _context.ActionObjectPermissionAssignments
                 .FirstOrDefaultAsync(a =>
-                    a.FeatureId == featureId &&
+                    a.ActionObjectId == actionObjectId &&
                     a.PermissionId == permissionId &&
                     a.AssigneeType == assigneeType &&
                     a.AssigneeId == assigneeId && !a.IsDeleted);
@@ -192,12 +194,12 @@ namespace Infrastructure.Services
                 assignment.UpdatedAt = DateTime.UtcNow;
             }
 
-            // ── Cascade: if revoking from an Org, also revoke from all users in that Org ──
+            // Cascade: if revoking from an Org, also revoke from all users in that Org
             if (assigneeType == AssigneeType.Organization)
             {
-                var userAssignments = await _context.FeaturePermissionAssignments
+                var userAssignments = await _context.ActionObjectPermissionAssignments
                     .Where(a =>
-                        a.FeatureId == featureId &&
+                        a.ActionObjectId == actionObjectId &&
                         a.PermissionId == permissionId &&
                         a.AssigneeType == AssigneeType.User &&
                         a.OrganizationId == assigneeId &&
@@ -220,54 +222,74 @@ namespace Infrastructure.Services
         //  Queries
         // ════════════════════════════════════════════
 
-        public async Task<bool> UserHasPermissionAsync(Guid userId, string featureCode, string permissionCode)
+        public async Task<bool> UserHasPermissionAsync(Guid userId, string actionObjectCode, string permissionCode)
         {
-            return await _context.FeaturePermissionAssignments
-                .Include(a => a.Feature)
+            return await _context.ActionObjectPermissionAssignments
+                .Include(a => a.ActionObject)
                 .Include(a => a.Permission)
                 .AnyAsync(a =>
-                    a.Feature.Code == featureCode &&
+                    a.ActionObject.Code == actionObjectCode &&
                     a.Permission.Code == permissionCode &&
                     a.AssigneeType == AssigneeType.User &&
                     a.AssigneeId == userId &&
                     a.IsActive && !a.IsDeleted);
         }
 
-        public async Task<bool> OrgHasPermissionAsync(Guid orgId, Guid featureId, Guid permissionId)
+        public async Task<bool> OrgHasPermissionAsync(Guid orgId, Guid actionObjectId, Guid permissionId)
         {
-            return await _context.FeaturePermissionAssignments
+            return await _context.ActionObjectPermissionAssignments
                 .IgnoreQueryFilters()
                 .AnyAsync(a =>
-                    a.FeatureId == featureId &&
+                    a.ActionObjectId == actionObjectId &&
                     a.PermissionId == permissionId &&
                     a.AssigneeType == AssigneeType.Organization &&
                     a.AssigneeId == orgId &&
                     a.IsActive && !a.IsDeleted);
         }
 
-        public async Task<IEnumerable<FeaturePermissionAssignment>> GetUserAssignmentsAsync(Guid userId)
+        public async Task<PagedResult<ActionObjectPermissionAssignment>> GetUserAssignmentsAsync(Guid userId, PageRequest pageRequest)
         {
-            return await _context.FeaturePermissionAssignments
-                .Include(a => a.Feature)
+            var query = _context.ActionObjectPermissionAssignments
+                .Include(a => a.ActionObject)
                 .Include(a => a.Permission)
                 .Where(a =>
                     a.AssigneeType == AssigneeType.User &&
                     a.AssigneeId == userId &&
-                    a.IsActive && !a.IsDeleted)
-                .ToListAsync();
+                    a.IsActive && !a.IsDeleted);
+
+            var totalCount = await query.CountAsync();
+            var items = await query.Skip(pageRequest.Skip).Take(pageRequest.PageSize).ToListAsync();
+
+            return new PagedResult<ActionObjectPermissionAssignment>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = pageRequest.Page,
+                PageSize = pageRequest.PageSize
+            };
         }
 
-        public async Task<IEnumerable<FeaturePermissionAssignment>> GetOrgAssignmentsAsync(Guid orgId)
+        public async Task<PagedResult<ActionObjectPermissionAssignment>> GetOrgAssignmentsAsync(Guid orgId, PageRequest pageRequest)
         {
-            return await _context.FeaturePermissionAssignments
+            var query = _context.ActionObjectPermissionAssignments
                 .IgnoreQueryFilters()
-                .Include(a => a.Feature)
+                .Include(a => a.ActionObject)
                 .Include(a => a.Permission)
                 .Where(a =>
                     a.AssigneeType == AssigneeType.Organization &&
                     a.AssigneeId == orgId &&
-                    a.IsActive && !a.IsDeleted)
-                .ToListAsync();
+                    a.IsActive && !a.IsDeleted);
+
+            var totalCount = await query.CountAsync();
+            var items = await query.Skip(pageRequest.Skip).Take(pageRequest.PageSize).ToListAsync();
+
+            return new PagedResult<ActionObjectPermissionAssignment>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = pageRequest.Page,
+                PageSize = pageRequest.PageSize
+            };
         }
     }
 }

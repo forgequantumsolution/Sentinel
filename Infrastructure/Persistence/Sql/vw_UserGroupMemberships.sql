@@ -165,7 +165,7 @@ LEFT JOIN "DynamicGroupObjectPermissions" dpr
    AND dpr."IsDeleted"   = false
    AND dpr."IsAllowed"   = true
 LEFT JOIN "ActionObjectPermissionSets" aops
-    ON aops."DynamicPermissionRuleId" = dpr."Id"
+    ON aops."DynamicGroupObjectPermissionId" = dpr."Id"
    AND aops."IsActive"  = true
    AND aops."IsDeleted"  = false
 LEFT JOIN "ActionObjectPermissionSetItems" aopsi

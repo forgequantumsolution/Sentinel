@@ -74,6 +74,8 @@ namespace Application.DTOs
         /// The actual linked entity data based on ObjectType.
         /// e.g., GraphConfigDto for Graph, null for Folder, etc.
         /// </summary>
+        public bool HasChildren { get; set; }
         public object? Data { get; set; }
+        public List<ActionObjectDto>? ChildObjects { get; set; }
     }
 }

@@ -63,6 +63,7 @@ namespace WebAPI
 
             // Background services
             services.AddHostedService<BulkUploadBackgroundService>();
+            services.AddHostedService<WebAPI.Services.EndpointSyncService>();
 
             // Caching
             services.AddMemoryCache();

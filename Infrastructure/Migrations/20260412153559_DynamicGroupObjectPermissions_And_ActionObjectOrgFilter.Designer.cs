@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260412123043_RenameDynamicPermissionAndAddPermissionSets")]
-    partial class RenameDynamicPermissionAndAddPermissionSets
+    [Migration("20260412153559_DynamicGroupObjectPermissions_And_ActionObjectOrgFilter")]
+    partial class DynamicGroupObjectPermissions_And_ActionObjectOrgFilter
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -63,6 +63,9 @@ namespace Infrastructure.Migrations
                     b.Property<int>("ObjectType")
                         .HasColumnType("integer");
 
+                    b.Property<Guid?>("OrganizationId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid?>("ParentObjectId")
                         .HasColumnType("uuid");
 
@@ -77,6 +80,8 @@ namespace Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
 
                     b.HasIndex("ParentObjectId");
 
@@ -1769,10 +1774,16 @@ namespace Infrastructure.Migrations
 
             modelBuilder.Entity("Core.Entities.ActionObject", b =>
                 {
+                    b.HasOne("Core.Entities.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId");
+
                     b.HasOne("Core.Entities.ActionObject", "ParentObject")
                         .WithMany("ChildObjects")
                         .HasForeignKey("ParentObjectId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Organization");
 
                     b.Navigation("ParentObject");
                 });

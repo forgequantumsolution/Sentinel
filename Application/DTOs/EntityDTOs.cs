@@ -75,16 +75,6 @@ namespace Application.DTOs
     }
 
     // ── RBAC DTOs ──
-    public class FeatureDto
-    {
-        public Guid Id { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public string? Code { get; set; }
-        public string? Description { get; set; }
-        public Guid? ParentFeatureId { get; set; }
-        public bool IsActive { get; set; }
-    }
-
     public class AppPermissionDto
     {
         public Guid Id { get; set; }
@@ -94,20 +84,20 @@ namespace Application.DTOs
         public bool IsActive { get; set; }
     }
 
-    public class FeaturePermissionDto
+    public class ActionObjectPermissionDto
     {
-        public Guid FeatureId { get; set; }
-        public FeatureDto? Feature { get; set; }
+        public Guid ActionObjectId { get; set; }
+        public ActionObjectDto? ActionObject { get; set; }
         public Guid PermissionId { get; set; }
         public AppPermissionDto? Permission { get; set; }
     }
 
-    public class UserFeaturesPermissionsDto
+    public class UserPermissionsDto
     {
         public Guid UserId { get; set; }
         public string UserName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
-        public List<FeaturePermissionDto> FeaturesPermissions { get; set; } = new();
+        public List<ActionObjectPermissionDto> Permissions { get; set; } = new();
     }
 
     // ── Graph DTOs ──

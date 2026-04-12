@@ -36,6 +36,14 @@ namespace Core.Entities
 
         public int SortOrder { get; set; } = 0;
 
+        /// <summary>
+        /// NULL = global (visible to all orgs). Set = org-specific.
+        /// </summary>
+        public Guid? OrganizationId { get; set; }
+
+        [ForeignKey("OrganizationId")]
+        public virtual Organization? Organization { get; set; }
+
         // ── Hierarchy ──
 
         public Guid? ParentObjectId { get; set; }
@@ -44,6 +52,9 @@ namespace Core.Entities
         public virtual ActionObject? ParentObject { get; set; }
 
         public virtual ICollection<ActionObject> ChildObjects { get; set; } = new List<ActionObject>();
+
+        [NotMapped]
+        public bool HasChildren { get; set; }
 
         // ── Navigation ──
 

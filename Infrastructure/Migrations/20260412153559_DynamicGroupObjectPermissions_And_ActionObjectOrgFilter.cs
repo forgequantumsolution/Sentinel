@@ -6,13 +6,25 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class RenameDynamicPermissionAndAddPermissionSets : Migration
+    public partial class DynamicGroupObjectPermissions_And_ActionObjectOrgFilter : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "DynamicPermissionRules");
+            // Clean up any leftover objects from previous failed attempts
+            migrationBuilder.Sql(@"DROP TABLE IF EXISTS ""ActionObjectPermissionSetItems"" CASCADE;");
+            migrationBuilder.Sql(@"DROP TABLE IF EXISTS ""ActionObjectPermissionSets"" CASCADE;");
+            migrationBuilder.Sql(@"DROP TABLE IF EXISTS ""DynamicGroupObjectPermissions"" CASCADE;");
+            migrationBuilder.Sql(@"DROP TABLE IF EXISTS ""DynamicPermissionRules"" CASCADE;");
+            migrationBuilder.Sql(@"DROP VIEW IF EXISTS ""vw_UserGroupMemberships"" CASCADE;");
+            migrationBuilder.Sql(@"DROP FUNCTION IF EXISTS evaluate_grouping_rule(UUID, UUID);");
+            migrationBuilder.Sql(@"DROP FUNCTION IF EXISTS resolve_user_field(UUID, TEXT);");
+
+            migrationBuilder.AddColumn<Guid>(
+                name: "OrganizationId",
+                table: "ActionObjects",
+                type: "uuid",
+                nullable: true);
 
             migrationBuilder.CreateTable(
                 name: "DynamicGroupObjectPermissions",
@@ -114,6 +126,11 @@ namespace Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
+                name: "IX_ActionObjects_OrganizationId",
+                table: "ActionObjects",
+                column: "OrganizationId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ActionObjectPermissionSetItems_ActionObjectPermissionSetId",
                 table: "ActionObjectPermissionSetItems",
                 column: "ActionObjectPermissionSetId");
@@ -147,11 +164,28 @@ namespace Infrastructure.Migrations
                 name: "IX_DynamicGroupObjectPermissions_UserGroupId",
                 table: "DynamicGroupObjectPermissions",
                 column: "UserGroupId");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_ActionObjects_Organizations_OrganizationId",
+                table: "ActionObjects",
+                column: "OrganizationId",
+                principalTable: "Organizations",
+                principalColumn: "Id");
+
+            // Recreate the VIEW with updated table name
+            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+            using var stream = assembly.GetManifestResourceStream("Infrastructure.Persistence.Sql.vw_UserGroupMemberships.sql")!;
+            using var reader = new System.IO.StreamReader(stream);
+            migrationBuilder.Sql(reader.ReadToEnd());
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropForeignKey(
+                name: "FK_ActionObjects_Organizations_OrganizationId",
+                table: "ActionObjects");
+
             migrationBuilder.DropTable(
                 name: "ActionObjectPermissionSetItems");
 
@@ -160,6 +194,14 @@ namespace Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "DynamicGroupObjectPermissions");
+
+            migrationBuilder.DropIndex(
+                name: "IX_ActionObjects_OrganizationId",
+                table: "ActionObjects");
+
+            migrationBuilder.DropColumn(
+                name: "OrganizationId",
+                table: "ActionObjects");
 
             migrationBuilder.CreateTable(
                 name: "DynamicPermissionRules",

@@ -60,6 +60,9 @@ namespace Infrastructure.Migrations
                     b.Property<int>("ObjectType")
                         .HasColumnType("integer");
 
+                    b.Property<Guid?>("OrganizationId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid?>("ParentObjectId")
                         .HasColumnType("uuid");
 
@@ -75,13 +78,15 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("OrganizationId");
+
                     b.HasIndex("ParentObjectId");
 
                     b.HasIndex("Route")
                         .IsUnique()
                         .HasFilter("\"Route\" IS NOT NULL");
 
-                    b.ToTable("ActionObjects");
+                    b.ToTable("ActionObjects", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.ActionObjectPermissionAssignment", b =>
@@ -133,7 +138,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("PermissionId");
 
-                    b.ToTable("ActionObjectPermissionAssignment");
+                    b.ToTable("ActionObjectPermissionAssignment", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.ActionObjectPermissionSet", b =>
@@ -169,7 +174,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("DynamicGroupObjectPermissionId");
 
-                    b.ToTable("ActionObjectPermissionSets");
+                    b.ToTable("ActionObjectPermissionSets", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.ActionObjectPermissionSetItem", b =>
@@ -205,7 +210,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("PermissionId");
 
-                    b.ToTable("ActionObjectPermissionSetItems");
+                    b.ToTable("ActionObjectPermissionSetItems", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.AppPermission", b =>
@@ -247,7 +252,7 @@ namespace Infrastructure.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
-                    b.ToTable("AppPermissions");
+                    b.ToTable("AppPermissions", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.BulkUploadJob", b =>
@@ -316,7 +321,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("OrganizationId");
 
-                    b.ToTable("BulkUploadJobs");
+                    b.ToTable("BulkUploadJobs", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.Department", b =>
@@ -377,7 +382,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("ParentDepartmentId");
 
-                    b.ToTable("Departments");
+                    b.ToTable("Departments", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.DynamicForm", b =>
@@ -426,7 +431,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("OrganizationId");
 
-                    b.ToTable("DynamicForms");
+                    b.ToTable("DynamicForms", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.DynamicFormDraft", b =>
@@ -473,7 +478,7 @@ namespace Infrastructure.Migrations
                         .IsUnique()
                         .HasFilter("\"IsDeleted\" = false");
 
-                    b.ToTable("DynamicFormDrafts");
+                    b.ToTable("DynamicFormDrafts", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.DynamicFormFieldDefinition", b =>
@@ -541,7 +546,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("OrganizationId");
 
-                    b.ToTable("DynamicFormFieldDefinitions");
+                    b.ToTable("DynamicFormFieldDefinitions", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.DynamicFormRecord", b =>
@@ -813,7 +818,7 @@ namespace Infrastructure.Migrations
                     b.HasIndex("SubmissionId")
                         .IsUnique();
 
-                    b.ToTable("DynamicFormRecords");
+                    b.ToTable("DynamicFormRecords", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.DynamicFormRecordValue", b =>
@@ -868,7 +873,7 @@ namespace Infrastructure.Migrations
                     b.HasIndex("SubmissionId", "FieldDefinitionId")
                         .IsUnique();
 
-                    b.ToTable("DynamicFormRecordValues");
+                    b.ToTable("DynamicFormRecordValues", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.DynamicFormSubmission", b =>
@@ -913,7 +918,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("OrganizationId");
 
-                    b.ToTable("DynamicFormSubmissions");
+                    b.ToTable("DynamicFormSubmissions", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.DynamicGroupObjectPermission", b =>
@@ -970,7 +975,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("UserGroupId");
 
-                    b.ToTable("DynamicGroupObjectPermissions");
+                    b.ToTable("DynamicGroupObjectPermissions", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.DynamicGroupingRule", b =>
@@ -1047,7 +1052,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("UserGroupId");
 
-                    b.ToTable("DynamicGroupingRules");
+                    b.ToTable("DynamicGroupingRules", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.Feature", b =>
@@ -1094,7 +1099,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("ParentFeatureId");
 
-                    b.ToTable("Features");
+                    b.ToTable("Features", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.FeaturePermissionAssignment", b =>
@@ -1147,7 +1152,7 @@ namespace Infrastructure.Migrations
                     b.HasIndex("FeatureId", "PermissionId", "AssigneeType", "AssigneeId")
                         .IsUnique();
 
-                    b.ToTable("FeaturePermissionAssignments");
+                    b.ToTable("FeaturePermissionAssignments", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.GraphConfigEntity", b =>
@@ -1216,7 +1221,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("OrganizationId");
 
-                    b.ToTable("GraphConfigs");
+                    b.ToTable("GraphConfigs", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.GraphDataDefinitionEntity", b =>
@@ -1278,7 +1283,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("OrganizationId");
 
-                    b.ToTable("GraphDataDefinitions");
+                    b.ToTable("GraphDataDefinitions", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.JobTitle", b =>
@@ -1331,7 +1336,7 @@ namespace Infrastructure.Migrations
                     b.HasIndex("Title")
                         .IsUnique();
 
-                    b.ToTable("JobTitles");
+                    b.ToTable("JobTitles", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.Organization", b =>
@@ -1375,7 +1380,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("ParentOrganizationId");
 
-                    b.ToTable("Organizations");
+                    b.ToTable("Organizations", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.Permission", b =>
@@ -1429,7 +1434,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("OrganizationId");
 
-                    b.ToTable("Permissions");
+                    b.ToTable("Permissions", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.Role", b =>
@@ -1481,7 +1486,7 @@ namespace Infrastructure.Migrations
                     b.HasIndex("Name", "OrganizationId")
                         .IsUnique();
 
-                    b.ToTable("Roles");
+                    b.ToTable("Roles", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.UploadedFile", b =>
@@ -1545,7 +1550,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("OrganizationId");
 
-                    b.ToTable("UploadedFiles");
+                    b.ToTable("UploadedFiles", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.User", b =>
@@ -1669,7 +1674,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("UserGroupId");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.UserGroup", b =>
@@ -1728,7 +1733,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("UserGroups");
+                    b.ToTable("UserGroups", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.UserGroupMembership", b =>
@@ -1766,10 +1771,16 @@ namespace Infrastructure.Migrations
 
             modelBuilder.Entity("Core.Entities.ActionObject", b =>
                 {
+                    b.HasOne("Core.Entities.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId");
+
                     b.HasOne("Core.Entities.ActionObject", "ParentObject")
                         .WithMany("ChildObjects")
                         .HasForeignKey("ParentObjectId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Organization");
 
                     b.Navigation("ParentObject");
                 });
