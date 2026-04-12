@@ -25,7 +25,7 @@ namespace Infrastructure.Persistence
         public DbSet<JobTitle> JobTitles { get; set; }
         public DbSet<UserGroup> UserGroups { get; set; }
         public DbSet<DynamicGroupingRule> DynamicGroupingRules { get; set; }
-        public DbSet<DynamicPermissionRule> DynamicPermissionRules { get; set; }
+        public DbSet<DynamicGroupObjectPermission> DynamicGroupObjectPermissions { get; set; }
         public DbSet<DynamicForm> DynamicForms { get; set; }
         public DbSet<DynamicFormSubmission> DynamicFormSubmissions { get; set; }
         public DbSet<DynamicFormRecord> DynamicFormRecords { get; set; }
@@ -41,6 +41,8 @@ namespace Infrastructure.Persistence
         public DbSet<ActionObject> ActionObjects { get; set; }
         public DbSet<UploadedFile> UploadedFiles { get; set; }
         public DbSet<UserGroupMembership> UserGroupMemberships { get; set; }
+        public DbSet<ActionObjectPermissionSet> ActionObjectPermissionSets { get; set; }
+        public DbSet<ActionObjectPermissionSetItem> ActionObjectPermissionSetItems { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

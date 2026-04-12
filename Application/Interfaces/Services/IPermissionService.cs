@@ -9,6 +9,6 @@ namespace Application.Interfaces.Services
         Task<List<Permission>> GetEffectivePermissionsAsync(Guid userId, Guid? resourceId = null, PermissionType resourceType = PermissionType.System);
         Task AssignPermissionToUserAsync(Guid userId, Guid permissionId);
         Task AssignPermissionToGroupAsync(Guid groupId, Guid permissionId);
-        Task<DynamicPermissionRule> CreateDynamicPermissionRuleAsync(DynamicPermissionRule rule);
+        Task<DynamicGroupObjectPermission> CreateDynamicGroupObjectPermissionAsync(DynamicGroupObjectPermission rule);
     }
 }

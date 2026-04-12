@@ -64,22 +64,8 @@ namespace Application.Services
 
                 if (belongsToGroup)
                 {
-                    // Evaluate group's dynamic permission rules in DB
-                    foreach (var rule in group.DynamicPermissionRules.Where(r => r.IsActive && r.ParentRuleId == null))
-                    {
-                        var permExpr = rule.ToExpression();
-                        var param = permExpr.Parameters[0];
-                        var idCheck = Expression.Equal(
-                            Expression.Property(param, nameof(User.Id)),
-                            Expression.Constant(userId));
-                        var combined = Expression.AndAlso(idCheck, permExpr.Body);
-                        var predicate = Expression.Lambda<Func<User, bool>>(combined, param);
-
-                        if (await _userRepository.AnyMatchAsync(predicate))
-                        {
-                            // In a real implementation, we'd fetch actual Permission entities.
-                        }
-                    }
+                    // DynamicGroupObjectPermissions now directly assign permissions to groups
+                    // — no user evaluation needed, the group membership is the gate.
                 }
             }
 
@@ -90,10 +76,10 @@ namespace Application.Services
 
         public async Task AssignPermissionToGroupAsync(Guid groupId, Guid permissionId) { }
 
-        public async Task<DynamicPermissionRule> CreateDynamicPermissionRuleAsync(DynamicPermissionRule rule)
+        public async Task<DynamicGroupObjectPermission> CreateDynamicGroupObjectPermissionAsync(DynamicGroupObjectPermission rule)
         {
             // This logic can stay in the service for now or be moved to repo if it involves DB directly.
-            // Since IPermissionService says "CreateDynamicPermissionRule", we'll need a Repo for it.
+            // Since IPermissionService says "CreateDynamicGroupObjectPermission", we'll need a Repo for it.
             return rule; // Placeholder
         }
     }

@@ -28,6 +28,6 @@ namespace Core.Entities
 
         public virtual ICollection<User> Users { get; set; } = [];
         public virtual ICollection<DynamicGroupingRule> DynamicGroupingRules { get; set; } = [];
-        public virtual ICollection<DynamicPermissionRule> DynamicPermissionRules { get; set; } = [];
+        public virtual ICollection<DynamicGroupObjectPermission> DynamicGroupObjectPermissions { get; set; } = [];
     }
 }

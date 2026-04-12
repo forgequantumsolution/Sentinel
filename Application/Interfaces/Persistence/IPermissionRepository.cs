@@ -9,6 +9,6 @@ namespace Application.Interfaces.Persistence
         Task<bool> HasPermissionAsync(Guid userId, string action, Guid? resourceId, PermissionType resourceType);
         Task AddPermissionAssignmentAsync(Guid userId, Guid permissionId);
         Task AddGroupPermissionAssignmentAsync(Guid groupId, Guid permissionId);
-        Task AddDynamicRuleAsync(DynamicPermissionRule rule);
+        Task AddDynamicRuleAsync(DynamicGroupObjectPermission rule);
     }
 }

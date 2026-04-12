@@ -48,7 +48,7 @@ namespace WebAPI
             services.AddScoped<IGraphConfigRepository, GraphConfigRepository>();
             services.AddScoped<IGraphDataDefinitionRepository, GraphDataDefinitionRepository>();
             services.AddScoped<IDynamicGroupingRuleRepository, DynamicGroupingRuleRepository>();
-            services.AddScoped<IDynamicPermissionRuleRepository, DynamicPermissionRuleRepository>();
+            services.AddScoped<IDynamicGroupObjectPermissionRepository, DynamicGroupObjectPermissionRepository>();
             services.AddScoped<IBulkUploadJobRepository, BulkUploadJobRepository>();
             services.AddScoped<IActionObjectRepository, ActionObjectRepository>();
             services.AddScoped<IUploadedFileRepository, UploadedFileRepository>();
@@ -109,7 +109,7 @@ namespace WebAPI
             services.AddScoped<IRbacService, RbacService>(); 
             services.AddScoped<IGraphService, GraphService>();
             services.AddScoped<IDynamicGroupingRuleService, DynamicGroupingRuleService>();
-            services.AddScoped<IDynamicPermissionRuleService, DynamicPermissionRuleService>();
+            services.AddScoped<IDynamicGroupObjectPermissionService, DynamicGroupObjectPermissionService>();
             services.AddScoped<IBulkUploadService, BulkUploadService>();
             services.AddScoped<IAppFolderService, AppFolderService>();
             services.AddScoped<IGroupMembershipService, GroupMembershipService>();

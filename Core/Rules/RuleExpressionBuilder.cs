@@ -5,7 +5,7 @@ using Core.Enums;
 namespace Core.Rules
 {
     /// <summary>
-    /// Builds Expression&lt;Func&lt;User, bool&gt;&gt; from DynamicGroupingRule / DynamicPermissionRule trees.
+    /// Builds Expression&lt;Func&lt;User, bool&gt;&gt; from DynamicGroupingRule / DynamicGroupObjectPermission trees.
     /// The expression is EF Core-translatable, so filtering happens in the database.
     /// </summary>
     public static class RuleExpressionBuilder

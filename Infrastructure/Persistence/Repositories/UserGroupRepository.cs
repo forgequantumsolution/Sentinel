@@ -17,7 +17,7 @@ namespace Infrastructure.Persistence.Repositories
         {
             return await _context.UserGroups
                 .Include(g => g.DynamicGroupingRules)
-                .Include(g => g.DynamicPermissionRules)
+                .Include(g => g.DynamicGroupObjectPermissions)
                 .FirstOrDefaultAsync(g => g.Id == id);
         }
 
@@ -30,7 +30,7 @@ namespace Infrastructure.Persistence.Repositories
         {
             return await _context.UserGroups
                 .Include(g => g.DynamicGroupingRules)
-                .Include(g => g.DynamicPermissionRules)
+                .Include(g => g.DynamicGroupObjectPermissions)
                 .ToListAsync();
         }
 

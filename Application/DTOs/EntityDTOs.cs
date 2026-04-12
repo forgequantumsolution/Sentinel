@@ -263,6 +263,27 @@ namespace Application.DTOs
         public List<RuleFieldOperatorDto> Operators { get; set; } = [];
     }
 
+    public class ActionObjectPermissionSetDto
+    {
+        public Guid Id { get; set; }
+        public Guid ActionObjectId { get; set; }
+        public string? ActionObjectName { get; set; }
+        public List<ActionObjectPermissionSetItemDto> Permissions { get; set; } = [];
+    }
+
+    public class ActionObjectPermissionSetItemDto
+    {
+        public Guid Id { get; set; }
+        public Guid PermissionId { get; set; }
+        public string? PermissionName { get; set; }
+    }
+
+    public class CreateActionObjectPermissionSetRequest
+    {
+        public Guid ActionObjectId { get; set; }
+        public List<Guid> PermissionIds { get; set; } = [];
+    }
+
     public class UserGroupMembershipDto
     {
         public Guid UserId { get; set; }

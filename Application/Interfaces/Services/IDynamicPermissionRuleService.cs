@@ -3,18 +3,17 @@ using Application.DTOs;
 
 namespace Application.Interfaces.Services
 {
-    public interface IDynamicPermissionRuleService
+    public interface IDynamicGroupObjectPermissionService
     {
-        Task<DynamicPermissionRuleDto?> GetByIdAsync(Guid id);
-        Task<List<DynamicPermissionRuleDto>> GetAllAsync();
-        Task<List<DynamicPermissionRuleDto>> GetByUserGroupIdAsync(Guid userGroupId);
-        Task<List<DynamicPermissionRuleDto>> GetByActionObjectIdAsync(Guid actionObjectId);
-        Task<List<DynamicPermissionRuleDto>> GetByPermissionIdAsync(Guid permissionId);
-        Task<List<DynamicPermissionRuleDto>> GetByActionObjectAndPermissionAsync(Guid actionObjectId, Guid permissionId);
-        Task<DynamicPermissionRuleDto> CreateAsync(CreateDynamicPermissionRuleRequest request);
-        Task<DynamicPermissionRuleDto> UpdateAsync(Guid id, UpdateDynamicPermissionRuleRequest request);
+        Task<DynamicGroupObjectPermissionDto?> GetByIdAsync(Guid id);
+        Task<List<DynamicGroupObjectPermissionDto>> GetAllAsync();
+        Task<List<DynamicGroupObjectPermissionDto>> GetByUserGroupIdAsync(Guid userGroupId);
+        Task<List<DynamicGroupObjectPermissionDto>> GetByActionObjectIdAsync(Guid actionObjectId);
+        Task<List<DynamicGroupObjectPermissionDto>> GetByPermissionIdAsync(Guid permissionId);
+        Task<List<DynamicGroupObjectPermissionDto>> GetByActionObjectAndPermissionAsync(Guid actionObjectId, Guid permissionId);
+        Task<DynamicGroupObjectPermissionDto> CreateAsync(CreateDynamicGroupObjectPermissionRequest request);
+        Task<DynamicGroupObjectPermissionDto> UpdateAsync(Guid id, UpdateDynamicGroupObjectPermissionRequest request);
         Task DeleteAsync(Guid id);
         Task<bool> ExistsAsync(Guid id);
-        Task<bool> EvaluatePermissionAsync(Guid ruleId, Guid userId);
     }
 }

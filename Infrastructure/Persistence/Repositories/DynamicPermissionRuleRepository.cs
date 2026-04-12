@@ -4,125 +4,97 @@ using Application.Interfaces.Persistence;
 
 namespace Infrastructure.Persistence.Repositories
 {
-    public class DynamicPermissionRuleRepository : IDynamicPermissionRuleRepository
+    public class DynamicGroupObjectPermissionRepository : IDynamicGroupObjectPermissionRepository
     {
         private readonly AppDbContext _context;
 
-        public DynamicPermissionRuleRepository(AppDbContext context)
+        public DynamicGroupObjectPermissionRepository(AppDbContext context)
         {
             _context = context;
         }
 
-        public async Task<DynamicPermissionRule?> GetByIdAsync(Guid id)
+        private IQueryable<DynamicGroupObjectPermission> BaseQuery()
         {
-            return await _context.DynamicPermissionRules
+            return _context.DynamicGroupObjectPermissions
                 .Include(r => r.UserGroup)
-                .Include(r => r.ParentRule)
-                .Include(r => r.ChildRules)
-                .Include(r => r.ActionObject)
-                .Include(r => r.Permission)
-                .FirstOrDefaultAsync(r => r.Id == id);
+                .Include(r => r.ActionObjectPermissionSets)
+                    .ThenInclude(s => s.ActionObject)
+                .Include(r => r.ActionObjectPermissionSets)
+                    .ThenInclude(s => s.Permissions)
+                        .ThenInclude(p => p.Permission);
         }
 
-        public async Task<List<DynamicPermissionRule>> GetAllAsync()
+        public async Task<DynamicGroupObjectPermission?> GetByIdAsync(Guid id)
         {
-            return await _context.DynamicPermissionRules
-                .Include(r => r.UserGroup)
-                .Include(r => r.ParentRule)
-                .Include(r => r.ChildRules)
-                .Where(r => r.ParentRuleId == null) // Get root rules by default
-                .ToListAsync();
+            return await BaseQuery().FirstOrDefaultAsync(r => r.Id == id);
         }
 
-        public async Task<List<DynamicPermissionRule>> GetByUserGroupIdAsync(Guid userGroupId)
+        public async Task<List<DynamicGroupObjectPermission>> GetAllAsync()
         {
-            return await _context.DynamicPermissionRules
-                .Include(r => r.UserGroup)
-                .Include(r => r.ParentRule)
-                .Include(r => r.ChildRules)
+            return await BaseQuery().ToListAsync();
+        }
+
+        public async Task<List<DynamicGroupObjectPermission>> GetByUserGroupIdAsync(Guid userGroupId)
+        {
+            return await BaseQuery()
                 .Where(r => r.UserGroupId == userGroupId)
                 .ToListAsync();
         }
 
-        public async Task<List<DynamicPermissionRule>> GetByActionObjectIdAsync(Guid actionObjectId)
+        public async Task<List<DynamicGroupObjectPermission>> GetByActionObjectIdAsync(Guid actionObjectId)
         {
-            return await _context.DynamicPermissionRules
-                .Include(r => r.UserGroup)
-                .Include(r => r.ParentRule)
-                .Include(r => r.ChildRules)
-                .Include(r => r.ActionObject)
-                .Include(r => r.Permission)
-                .Where(r => r.ActionObjectId == actionObjectId)
+            return await BaseQuery()
+                .Where(r => r.ActionObjectPermissionSets.Any(s => s.ActionObjectId == actionObjectId))
                 .ToListAsync();
         }
 
-        public async Task<List<DynamicPermissionRule>> GetByPermissionIdAsync(Guid permissionId)
+        public async Task<List<DynamicGroupObjectPermission>> GetByPermissionIdAsync(Guid permissionId)
         {
-            return await _context.DynamicPermissionRules
-                .Include(r => r.UserGroup)
-                .Include(r => r.ParentRule)
-                .Include(r => r.ChildRules)
-                .Include(r => r.ActionObject)
-                .Include(r => r.Permission)
-                .Where(r => r.PermissionId == permissionId)
+            return await BaseQuery()
+                .Where(r => r.ActionObjectPermissionSets.Any(s => s.Permissions.Any(p => p.PermissionId == permissionId)))
                 .ToListAsync();
         }
 
-        public async Task<List<DynamicPermissionRule>> GetByActionObjectAndPermissionAsync(Guid actionObjectId, Guid permissionId)
+        public async Task<List<DynamicGroupObjectPermission>> GetByActionObjectAndPermissionAsync(Guid actionObjectId, Guid permissionId)
         {
-            return await _context.DynamicPermissionRules
-                .Include(r => r.UserGroup)
-                .Include(r => r.ParentRule)
-                .Include(r => r.ChildRules)
-                .Include(r => r.ActionObject)
-                .Include(r => r.Permission)
-                .Where(r => r.ActionObjectId == actionObjectId && r.PermissionId == permissionId)
+            return await BaseQuery()
+                .Where(r => r.ActionObjectPermissionSets.Any(s =>
+                    s.ActionObjectId == actionObjectId &&
+                    s.Permissions.Any(p => p.PermissionId == permissionId)))
                 .ToListAsync();
         }
 
-        public async Task<List<DynamicPermissionRule>> GetRootRulesAsync()
+        public async Task<List<DynamicGroupObjectPermission>> GetRootRulesAsync()
         {
-            return await _context.DynamicPermissionRules
-                .Include(r => r.UserGroup)
-                .Include(r => r.ChildRules)
-                .Where(r => r.ParentRuleId == null)
-                .ToListAsync();
+            return await BaseQuery().ToListAsync();
         }
 
-        public async Task AddAsync(DynamicPermissionRule rule)
+        public async Task AddAsync(DynamicGroupObjectPermission rule)
         {
-            await _context.DynamicPermissionRules.AddAsync(rule);
+            await _context.DynamicGroupObjectPermissions.AddAsync(rule);
             await _context.SaveChangesAsync();
         }
 
-        public async Task UpdateAsync(DynamicPermissionRule rule)
+        public async Task UpdateAsync(DynamicGroupObjectPermission rule)
         {
-            _context.DynamicPermissionRules.Update(rule);
+            _context.DynamicGroupObjectPermissions.Update(rule);
             await _context.SaveChangesAsync();
         }
 
         public async Task DeleteAsync(Guid id)
         {
-            var rule = await GetByIdAsync(id);
+            var rule = await _context.DynamicGroupObjectPermissions.FindAsync(id);
             if (rule != null)
             {
-                // Handle child rules - either delete them or set their ParentRuleId to null
-                if (rule.ChildRules != null && rule.ChildRules.Any())
-                {
-                    foreach (var child in rule.ChildRules)
-                    {
-                        child.ParentRuleId = null;
-                    }
-                }
-                
-                _context.DynamicPermissionRules.Remove(rule);
+                rule.IsDeleted = true;
+                rule.DeletedAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
             }
         }
 
         public async Task<bool> ExistsAsync(Guid id)
         {
-            return await _context.DynamicPermissionRules.AnyAsync(r => r.Id == id);
+            return await _context.DynamicGroupObjectPermissions.AnyAsync(r => r.Id == id);
         }
     }
 }

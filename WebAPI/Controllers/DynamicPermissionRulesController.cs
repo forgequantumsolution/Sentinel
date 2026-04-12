@@ -6,12 +6,12 @@ namespace WebAPI.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class DynamicPermissionRulesController : ControllerBase
+    public class DynamicGroupObjectPermissionsController : ControllerBase
     {
-        private readonly IDynamicPermissionRuleService _ruleService;
+        private readonly IDynamicGroupObjectPermissionService _ruleService;
         private readonly IRuleFieldService _ruleFieldService;
 
-        public DynamicPermissionRulesController(IDynamicPermissionRuleService ruleService, IRuleFieldService ruleFieldService)
+        public DynamicGroupObjectPermissionsController(IDynamicGroupObjectPermissionService ruleService, IRuleFieldService ruleFieldService)
         {
             _ruleService = ruleService;
             _ruleFieldService = ruleFieldService;
@@ -61,7 +61,7 @@ namespace WebAPI.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] CreateDynamicPermissionRuleRequest request)
+        public async Task<IActionResult> Create([FromBody] CreateDynamicGroupObjectPermissionRequest request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -71,7 +71,7 @@ namespace WebAPI.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(Guid id, [FromBody] UpdateDynamicPermissionRuleRequest request)
+        public async Task<IActionResult> Update(Guid id, [FromBody] UpdateDynamicGroupObjectPermissionRequest request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -103,14 +103,5 @@ namespace WebAPI.Controllers
             return Ok(_ruleFieldService.GetRuleFields());
         }
 
-        [HttpGet("{ruleId}/user/{userId}/evaluate")]
-        public async Task<IActionResult> EvaluatePermission(Guid ruleId, Guid userId)
-        {
-            if (!await _ruleService.ExistsAsync(ruleId))
-                return NotFound();
-
-            var hasPermission = await _ruleService.EvaluatePermissionAsync(ruleId, userId);
-            return Ok(new { hasPermission });
-        }
     }
 }
