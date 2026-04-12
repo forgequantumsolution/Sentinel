@@ -96,12 +96,5 @@ namespace WebAPI.Controllers
             await _ruleService.DeleteAsync(id);
             return NoContent();
         }
-
-        [HttpGet("rule-fields")]
-        public IActionResult GetRuleFields()
-        {
-            return Ok(_ruleFieldService.GetRuleFields());
-        }
-
     }
 }

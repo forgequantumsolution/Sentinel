@@ -38,7 +38,7 @@ namespace Application.Services
 
         private static readonly List<RuleFieldDto> Fields =
         [
-            new() { Field = "User.Role.Name",       Label = "Role",            Type = "string",  Operators = StringOperators },
+            new() { Field = "User.Role.Name",        Label = "Role",            Type = "string",  Operators = StringOperators },
             new() { Field = "User.Department.Name",  Label = "Department",      Type = "string",  Operators = StringOperators },
             new() { Field = "User.Department.Code",  Label = "Department Code", Type = "string",  Operators = StringOperators },
             new() { Field = "User.JobTitle.Title",   Label = "Job Title",       Type = "string",  Operators = StringOperators },
