@@ -40,6 +40,7 @@ namespace Infrastructure.Persistence
         public DbSet<BulkUploadJob> BulkUploadJobs { get; set; }
         public DbSet<ActionObject> ActionObjects { get; set; }
         public DbSet<UploadedFile> UploadedFiles { get; set; }
+        public DbSet<UserGroupMembership> UserGroupMemberships { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

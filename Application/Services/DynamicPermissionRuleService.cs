@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 using Core.Entities;
 using Application.DTOs;
 using Application.Interfaces;
@@ -171,14 +171,19 @@ namespace Application.Services
         public async Task<bool> EvaluatePermissionAsync(Guid ruleId, Guid userId)
         {
             var rule = await _ruleRepository.GetByIdAsync(ruleId);
-            var user = await _userRepository.GetByIdAsync(userId);
+            if (rule == null) return false;
 
-            if (rule == null || user == null)
-                return false;
+            // Build expression from rule tree and evaluate in DB
+            var ruleExpr = rule.ToExpression();
+            var param = ruleExpr.Parameters[0];
+            var idCheck = Expression.Equal(
+                Expression.Property(param, nameof(User.Id)),
+                Expression.Constant(userId));
+            var combined = Expression.AndAlso(idCheck, ruleExpr.Body);
+            var predicate = Expression.Lambda<Func<User, bool>>(combined, param);
 
-            // Evaluate the rule for the user
-            var result = rule.Evaluate(user, user);
-            return result && rule.IsAllowed;
+            var matches = await _userRepository.AnyMatchAsync(predicate);
+            return matches && rule.IsAllowed;
         }
 
         private DynamicPermissionRuleDto MapToDto(DynamicPermissionRule rule)

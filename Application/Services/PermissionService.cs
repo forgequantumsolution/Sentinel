@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Core.Entities;
 using Core.Enums;
 using Application.Interfaces.Persistence;
@@ -40,16 +41,43 @@ namespace Application.Services
 
             foreach (var group in allGroupsWithRules)
             {
-                // Check if user belongs to group via rules
-                if (group.DynamicGroupingRules.Any(r => r.IsActive && r.UserMatchesRule(user)))
+                // Check if user belongs to group via expression-based DB query
+                var groupingRules = group.DynamicGroupingRules.Where(r => r.IsActive && r.ParentRuleId == null).ToList();
+                bool belongsToGroup = false;
+
+                foreach (var rule in groupingRules)
                 {
-                    // Evaluate group's dynamic permission rules
-                    foreach (var rule in group.DynamicPermissionRules.Where(r => r.IsActive))
+                    var ruleExpr = rule.ToExpression();
+                    var param = ruleExpr.Parameters[0];
+                    var idCheck = Expression.Equal(
+                        Expression.Property(param, nameof(User.Id)),
+                        Expression.Constant(userId));
+                    var combined = Expression.AndAlso(idCheck, ruleExpr.Body);
+                    var predicate = Expression.Lambda<Func<User, bool>>(combined, param);
+
+                    if (await _userRepository.AnyMatchAsync(predicate))
                     {
-                        if (rule.Evaluate(user))
+                        belongsToGroup = true;
+                        break;
+                    }
+                }
+
+                if (belongsToGroup)
+                {
+                    // Evaluate group's dynamic permission rules in DB
+                    foreach (var rule in group.DynamicPermissionRules.Where(r => r.IsActive && r.ParentRuleId == null))
+                    {
+                        var permExpr = rule.ToExpression();
+                        var param = permExpr.Parameters[0];
+                        var idCheck = Expression.Equal(
+                            Expression.Property(param, nameof(User.Id)),
+                            Expression.Constant(userId));
+                        var combined = Expression.AndAlso(idCheck, permExpr.Body);
+                        var predicate = Expression.Lambda<Func<User, bool>>(combined, param);
+
+                        if (await _userRepository.AnyMatchAsync(predicate))
                         {
                             // In a real implementation, we'd fetch actual Permission entities.
-                            // For now, these were linked in the previous step.
                         }
                     }
                 }

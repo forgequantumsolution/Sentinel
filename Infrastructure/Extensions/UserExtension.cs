@@ -22,7 +22,7 @@ namespace Infrastructure.Extensions
 
             foreach (var group in groupsWithRules)
             {
-                if (await group.UserBelongsToGroupAsync(user))
+                if (await group.UserBelongsToGroupAsync(user, context))
                 {
                     matchingGroups.Add(group);
                 }

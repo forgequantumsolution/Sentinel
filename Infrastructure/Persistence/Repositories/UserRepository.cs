@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Core.Entities;
 using Application.Interfaces.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -63,6 +64,61 @@ namespace Infrastructure.Persistence.Repositories
         public async Task<bool> ExistsAsync(string email)
         {
             return await _context.Users.AnyAsync(u => u.Email == email);
+        }
+
+        public async Task<bool> AnyMatchAsync(Expression<Func<User, bool>> predicate)
+        {
+            return await _context.Users
+                .Include(u => u.Role)
+                .Include(u => u.Department)
+                .Include(u => u.JobTitle)
+                .AnyAsync(predicate);
+        }
+
+        public async Task<bool> AnyMatchAsync(Guid userId, IEnumerable<Expression<Func<User, bool>>> predicates)
+        {
+            var query = _context.Users
+                .Include(u => u.Role)
+                .Include(u => u.Department)
+                .Include(u => u.JobTitle)
+                .Where(u => u.Id == userId);
+
+            // OR all rule expressions: user matches if ANY rule passes
+            IQueryable<User>? combined = null;
+            foreach (var predicate in predicates)
+            {
+                var filtered = query.Where(predicate);
+                combined = combined == null ? filtered : combined.Union(filtered);
+            }
+
+            return combined != null && await combined.AnyAsync();
+        }
+
+        public async Task<List<User>> FindAsync(Expression<Func<User, bool>> predicate)
+        {
+            return await _context.Users
+                .Include(u => u.Role)
+                .Include(u => u.Department)
+                .Include(u => u.JobTitle)
+                .Where(predicate)
+                .ToListAsync();
+        }
+
+        public async Task<List<User>> FindAsync(IEnumerable<Expression<Func<User, bool>>> predicates)
+        {
+            var query = _context.Users
+                .Include(u => u.Role)
+                .Include(u => u.Department)
+                .Include(u => u.JobTitle);
+
+            IQueryable<User>? combined = null;
+            foreach (var predicate in predicates)
+            {
+                var filtered = query.Where(predicate);
+                combined = combined == null ? filtered : combined.Union(filtered);
+            }
+
+            return combined != null ? await combined.ToListAsync() : [];
         }
     }
 }

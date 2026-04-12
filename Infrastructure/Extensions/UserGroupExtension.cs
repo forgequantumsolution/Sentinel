@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Core.Entities;
 using Infrastructure.Persistence;
 using Core.Enums;
@@ -7,14 +8,41 @@ namespace Infrastructure.Extensions
 {
     public static class UserGroupExtension
     {
-        public static async Task<bool> UserBelongsToGroupAsync(this UserGroup userGroup, User user)
+        public static async Task<bool> UserBelongsToGroupAsync(this UserGroup userGroup, User user, AppDbContext context)
         {
             // First check if user is already explicitly in the collection
             if (userGroup.Users?.Any(u => u.Id == user.Id) == true)
                 return true;
 
-            // Then evaluate dynamic grouping rules
-            return userGroup.DynamicGroupingRules?.Any(rule => rule.IsActive && rule.UserMatchesRule(user)) == true;
+            // Evaluate dynamic grouping rules via expression in DB
+            var rules = userGroup.DynamicGroupingRules?
+                .Where(r => r.IsActive && r.ParentRuleId == null)
+                .ToList();
+
+            if (rules == null || rules.Count == 0)
+                return false;
+
+            foreach (var rule in rules)
+            {
+                var ruleExpr = rule.ToExpression();
+                var param = ruleExpr.Parameters[0];
+                var idCheck = Expression.Equal(
+                    Expression.Property(param, nameof(User.Id)),
+                    Expression.Constant(user.Id));
+                var combined = Expression.AndAlso(idCheck, ruleExpr.Body);
+                var predicate = Expression.Lambda<Func<User, bool>>(combined, param);
+
+                if (await context.Users
+                    .Include(u => u.Role)
+                    .Include(u => u.Department)
+                    .Include(u => u.JobTitle)
+                    .AnyAsync(predicate))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public static async Task CreateDynamicGroupingRuleAsync(

@@ -9,10 +9,12 @@ namespace WebAPI.Controllers
     public class DynamicGroupingRulesController : ControllerBase
     {
         private readonly IDynamicGroupingRuleService _ruleService;
+        private readonly IRuleFieldService _ruleFieldService;
 
-        public DynamicGroupingRulesController(IDynamicGroupingRuleService ruleService)
+        public DynamicGroupingRulesController(IDynamicGroupingRuleService ruleService, IRuleFieldService ruleFieldService)
         {
             _ruleService = ruleService;
+            _ruleFieldService = ruleFieldService;
         }
 
         [HttpGet]
@@ -82,6 +84,15 @@ namespace WebAPI.Controllers
 
             var matches = await _ruleService.UserMatchesRuleAsync(ruleId, userId);
             return Ok(new { matches });
+        }
+
+        /// <summary>
+        /// Returns all user properties available for rule definitions, with applicable operators
+        /// </summary>
+        [HttpGet("rule-fields")]
+        public IActionResult GetRuleFields()
+        {
+            return Ok(_ruleFieldService.GetRuleFields());
         }
     }
 }

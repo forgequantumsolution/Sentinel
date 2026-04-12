@@ -9,10 +9,12 @@ namespace WebAPI.Controllers
     public class DynamicPermissionRulesController : ControllerBase
     {
         private readonly IDynamicPermissionRuleService _ruleService;
+        private readonly IRuleFieldService _ruleFieldService;
 
-        public DynamicPermissionRulesController(IDynamicPermissionRuleService ruleService)
+        public DynamicPermissionRulesController(IDynamicPermissionRuleService ruleService, IRuleFieldService ruleFieldService)
         {
             _ruleService = ruleService;
+            _ruleFieldService = ruleFieldService;
         }
 
         [HttpGet]
@@ -93,6 +95,12 @@ namespace WebAPI.Controllers
 
             await _ruleService.DeleteAsync(id);
             return NoContent();
+        }
+
+        [HttpGet("rule-fields")]
+        public IActionResult GetRuleFields()
+        {
+            return Ok(_ruleFieldService.GetRuleFields());
         }
 
         [HttpGet("{ruleId}/user/{userId}/evaluate")]

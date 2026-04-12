@@ -1,4 +1,6 @@
+using System.Linq.Expressions;
 using Core.Enums;
+using Core.Rules;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -41,6 +43,15 @@ namespace Core.Entities
 
         [ForeignKey("UserGroupId")]
         public virtual UserGroup? UserGroup { get; set; }
+
+        /// <summary>
+        /// Builds an Expression&lt;Func&lt;User, bool&gt;&gt; that can be used as an EF Core WHERE clause.
+        /// Evaluates in the database instead of in memory.
+        /// </summary>
+        public Expression<Func<User, bool>> ToExpression()
+        {
+            return RuleExpressionBuilder.Build(this);
+        }
 
         protected bool EvaluateCondition(object? fieldValue, object? expectedValue, RuleOperator op)
         {

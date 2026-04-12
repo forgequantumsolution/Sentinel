@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 using Core.Entities;
 using Application.DTOs;
 using Application.Interfaces.Persistence;
@@ -144,12 +144,23 @@ namespace Application.Services
         public async Task<bool> UserMatchesRuleAsync(Guid ruleId, Guid userId)
         {
             var rule = await _ruleRepository.GetByIdAsync(ruleId);
-            var user = await _userRepository.GetByIdAsync(userId);
+            if (rule == null) return false;
 
-            if (rule == null || user == null)
-                return false;
+            // Build expression from rule tree and evaluate in DB
+            var ruleExpr = rule.ToExpression();
+            var combined = CombineWithId(ruleExpr, userId);
+            return await _userRepository.AnyMatchAsync(combined);
+        }
 
-            return rule.UserMatchesRule(user);
+        private static Expression<Func<User, bool>> CombineWithId(
+            Expression<Func<User, bool>> ruleExpr, Guid userId)
+        {
+            var param = ruleExpr.Parameters[0];
+            var idCheck = Expression.Equal(
+                Expression.Property(param, nameof(User.Id)),
+                Expression.Constant(userId));
+            var combined = Expression.AndAlso(idCheck, ruleExpr.Body);
+            return Expression.Lambda<Func<User, bool>>(combined, param);
         }
 
         private DynamicGroupingRuleDto MapToDto(DynamicGroupingRule rule)

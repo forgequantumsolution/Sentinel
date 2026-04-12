@@ -248,4 +248,28 @@ namespace Application.DTOs
         /// <summary>Named parameters for SQL / DynamicForm queries (e.g. @startDate).</summary>
         public Dictionary<string, object>? Parameters { get; set; }
     }
+
+    public class RuleFieldOperatorDto
+    {
+        public int Value { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class RuleFieldDto
+    {
+        public string Field { get; set; } = string.Empty;
+        public string Label { get; set; } = string.Empty;
+        public string Type { get; set; } = string.Empty;
+        public List<RuleFieldOperatorDto> Operators { get; set; } = [];
+    }
+
+    public class UserGroupMembershipDto
+    {
+        public Guid UserId { get; set; }
+        public Guid UserGroupId { get; set; }
+        public string? UserName { get; set; }
+        public string? UserEmail { get; set; }
+        public string? GroupName { get; set; }
+        public Guid? RuleId { get; set; }
+    }
 }
