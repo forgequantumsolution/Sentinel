@@ -292,5 +292,9 @@ namespace Application.DTOs
         public string? UserEmail { get; set; }
         public string? GroupName { get; set; }
         public Guid? RuleId { get; set; }
+        public Guid? ActionObjectId { get; set; }
+        public string? ActionObjectName { get; set; }
+        public Guid? PermissionId { get; set; }
+        public string? PermissionName { get; set; }
     }
 }

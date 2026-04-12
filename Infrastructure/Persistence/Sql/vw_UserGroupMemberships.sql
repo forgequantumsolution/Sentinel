@@ -128,19 +128,47 @@ $$ LANGUAGE plpgsql STABLE;
 
 
 -- ===================================================================
--- The VIEW — simple: root rules × users, filtered by function result
+-- The VIEW — resolves the full chain:
+--   User → (grouping rules) → UserGroup → DynamicGroupObjectPermission
+--        → ActionObjectPermissionSet → ActionObjectPermissionSetItem
+--
+-- Output: UserId, UserGroupId, RuleId, ActionObjectId, PermissionId, OrganizationId
 -- ===================================================================
 CREATE OR REPLACE VIEW "vw_UserGroupMemberships" AS
 SELECT
-    u."Id"              AS "UserId",
-    r."UserGroupId",
-    r."Id"              AS "RuleId",
-    u."OrganizationId"
-FROM "DynamicGroupingRules" r
-CROSS JOIN "Users" u
-WHERE r."ParentRuleId" IS NULL
-  AND r."IsActive"     = true  AND r."IsDeleted"  = false
-  AND r."AutoAssign"   = true
-  AND u."IsActive"     = true  AND u."IsDeleted"  = false
-  AND u."OrganizationId" = r."OrganizationId"
-  AND evaluate_grouping_rule(r."Id", u."Id") = true;
+    m."UserId",
+    m."UserGroupId",
+    m."RuleId",
+    aops."ActionObjectId",
+    aopsi."PermissionId",
+    m."OrganizationId"
+FROM (
+    -- Base: users matched to groups via grouping rules
+    SELECT
+        u."Id"              AS "UserId",
+        r."UserGroupId",
+        r."Id"              AS "RuleId",
+        u."OrganizationId"
+    FROM "DynamicGroupingRules" r
+    CROSS JOIN "Users" u
+    WHERE r."ParentRuleId" IS NULL
+      AND r."IsActive"     = true  AND r."IsDeleted"  = false
+      AND r."AutoAssign"   = true
+      AND u."IsActive"     = true  AND u."IsDeleted"  = false
+      AND u."OrganizationId" = r."OrganizationId"
+      AND evaluate_grouping_rule(r."Id", u."Id") = true
+) m
+-- Join permissions assigned to the group
+LEFT JOIN "DynamicGroupObjectPermissions" dpr
+    ON dpr."UserGroupId" = m."UserGroupId"
+   AND dpr."IsActive"    = true
+   AND dpr."IsDeleted"   = false
+   AND dpr."IsAllowed"   = true
+LEFT JOIN "ActionObjectPermissionSets" aops
+    ON aops."DynamicPermissionRuleId" = dpr."Id"
+   AND aops."IsActive"  = true
+   AND aops."IsDeleted"  = false
+LEFT JOIN "ActionObjectPermissionSetItems" aopsi
+    ON aopsi."ActionObjectPermissionSetId" = aops."Id"
+   AND aopsi."IsActive"  = true
+   AND aopsi."IsDeleted"  = false;

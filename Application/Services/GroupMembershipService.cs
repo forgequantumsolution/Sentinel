@@ -43,7 +43,11 @@ namespace Application.Services
                 UserName = m.User?.Name,
                 UserEmail = m.User?.Email,
                 GroupName = m.UserGroup?.Name,
-                RuleId = m.RuleId
+                RuleId = m.RuleId,
+                ActionObjectId = m.ActionObjectId,
+                ActionObjectName = m.ActionObject?.Name,
+                PermissionId = m.PermissionId,
+                PermissionName = m.Permission?.Name
             };
         }
     }

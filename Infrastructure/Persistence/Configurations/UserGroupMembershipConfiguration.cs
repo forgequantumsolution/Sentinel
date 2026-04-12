@@ -18,5 +18,13 @@ public class UserGroupMembershipConfiguration : IEntityTypeConfiguration<UserGro
         builder.HasOne(m => m.UserGroup)
               .WithMany()
               .HasForeignKey(m => m.UserGroupId);
+
+        builder.HasOne(m => m.ActionObject)
+              .WithMany()
+              .HasForeignKey(m => m.ActionObjectId);
+
+        builder.HasOne(m => m.Permission)
+              .WithMany()
+              .HasForeignKey(m => m.PermissionId);
     }
 }

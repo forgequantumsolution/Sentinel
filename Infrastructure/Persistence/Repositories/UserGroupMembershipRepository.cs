@@ -21,6 +21,8 @@ namespace Infrastructure.Persistence.Repositories
         {
             var query = _context.UserGroupMemberships
                 .Include(m => m.User)
+                .Include(m => m.ActionObject)
+                .Include(m => m.Permission)
                 .Where(m => m.UserGroupId == userGroupId);
 
             query = ApplyTenantFilter(query);
@@ -46,6 +48,8 @@ namespace Infrastructure.Persistence.Repositories
         {
             var query = _context.UserGroupMemberships
                 .Include(m => m.UserGroup)
+                .Include(m => m.ActionObject)
+                .Include(m => m.Permission)
                 .Where(m => m.UserId == userId);
 
             query = ApplyTenantFilter(query);
