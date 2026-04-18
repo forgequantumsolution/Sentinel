@@ -28,6 +28,9 @@ namespace Core.Entities
         [Required]
         public bool IsDynamicValue { get; set; } = false;
 
+        [Required]
+        public bool IsHidden { get; set; } = false;
+
         // Composite rule properties
         public RuleType RuleType { get; set; } = RuleType.Simple;
 

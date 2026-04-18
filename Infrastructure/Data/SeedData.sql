@@ -75,6 +75,34 @@ FROM "Roles" r
 WHERE r."Name" = 'user' AND r."OrganizationId" = org_id
   AND NOT EXISTS (SELECT 1 FROM "UserGroups" g WHERE g."RoleId" = r."Id" AND g."Type" = 0 AND g."IsDeleted" = false);
 
+-- Seed DynamicGroupingRule for each Role-based UserGroup
+-- Rule: User.Role.Name Equals <role-name> → auto-assign to group
+-- System-generated rules are marked IsHidden = true so they don't appear in UI edit screens
+-- Operator: Equals = 0, RuleType: Simple = 0
+INSERT INTO "DynamicGroupingRules" ("Id", "Name", "Description", "Field", "Operator", "Value", "IsDynamicValue", "IsHidden", "RuleType", "UserGroupId", "AutoAssign", "IsActive", "IsDeleted", "CreatedAt", "OrganizationId")
+SELECT gen_random_uuid(), 'super-admin Role Rule', 'Auto-assign users with super-admin role', 'User.Role.Name', 0, 'super-admin', false, true, 0, g."Id", true, true, false, NOW(), g."OrganizationId"
+FROM "UserGroups" g
+WHERE g."Name" = 'super-admin Role' AND g."Type" = 0 AND g."OrganizationId" = org_id
+  AND NOT EXISTS (SELECT 1 FROM "DynamicGroupingRules" rr WHERE rr."UserGroupId" = g."Id" AND rr."Field" = 'User.Role.Name' AND rr."IsDeleted" = false);
+
+INSERT INTO "DynamicGroupingRules" ("Id", "Name", "Description", "Field", "Operator", "Value", "IsDynamicValue", "IsHidden", "RuleType", "UserGroupId", "AutoAssign", "IsActive", "IsDeleted", "CreatedAt", "OrganizationId")
+SELECT gen_random_uuid(), 'sys-admin Role Rule', 'Auto-assign users with sys-admin role', 'User.Role.Name', 0, 'sys-admin', false, true, 0, g."Id", true, true, false, NOW(), g."OrganizationId"
+FROM "UserGroups" g
+WHERE g."Name" = 'sys-admin Role' AND g."Type" = 0 AND g."OrganizationId" = org_id
+  AND NOT EXISTS (SELECT 1 FROM "DynamicGroupingRules" rr WHERE rr."UserGroupId" = g."Id" AND rr."Field" = 'User.Role.Name' AND rr."IsDeleted" = false);
+
+INSERT INTO "DynamicGroupingRules" ("Id", "Name", "Description", "Field", "Operator", "Value", "IsDynamicValue", "IsHidden", "RuleType", "UserGroupId", "AutoAssign", "IsActive", "IsDeleted", "CreatedAt", "OrganizationId")
+SELECT gen_random_uuid(), 'admin Role Rule', 'Auto-assign users with admin role', 'User.Role.Name', 0, 'admin', false, true, 0, g."Id", true, true, false, NOW(), g."OrganizationId"
+FROM "UserGroups" g
+WHERE g."Name" = 'admin Role' AND g."Type" = 0 AND g."OrganizationId" = org_id
+  AND NOT EXISTS (SELECT 1 FROM "DynamicGroupingRules" rr WHERE rr."UserGroupId" = g."Id" AND rr."Field" = 'User.Role.Name' AND rr."IsDeleted" = false);
+
+INSERT INTO "DynamicGroupingRules" ("Id", "Name", "Description", "Field", "Operator", "Value", "IsDynamicValue", "IsHidden", "RuleType", "UserGroupId", "AutoAssign", "IsActive", "IsDeleted", "CreatedAt", "OrganizationId")
+SELECT gen_random_uuid(), 'user Role Rule', 'Auto-assign users with user role', 'User.Role.Name', 0, 'user', false, true, 0, g."Id", true, true, false, NOW(), g."OrganizationId"
+FROM "UserGroups" g
+WHERE g."Name" = 'user Role' AND g."Type" = 0 AND g."OrganizationId" = org_id
+  AND NOT EXISTS (SELECT 1 FROM "DynamicGroupingRules" rr WHERE rr."UserGroupId" = g."Id" AND rr."Field" = 'User.Role.Name' AND rr."IsDeleted" = false);
+
 END $$;
 
 -- Seed App Permissions (CRUD + common actions)

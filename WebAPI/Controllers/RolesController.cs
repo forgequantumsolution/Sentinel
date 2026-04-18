@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Application.Interfaces.Persistence;
 using Application.DTOs;
 using Core.Entities;
+using Core.Enums;
 
 namespace Controllers
 {
@@ -10,10 +11,17 @@ namespace Controllers
     public class RolesController : ControllerBase
     {
         private readonly IRoleRepository _repository;
+        private readonly IUserGroupRepository _userGroupRepository;
+        private readonly IDynamicGroupingRuleRepository _ruleRepository;
 
-        public RolesController(IRoleRepository repository)
+        public RolesController(
+            IRoleRepository repository,
+            IUserGroupRepository userGroupRepository,
+            IDynamicGroupingRuleRepository ruleRepository)
         {
             _repository = repository;
+            _userGroupRepository = userGroupRepository;
+            _ruleRepository = ruleRepository;
         }
 
         [HttpGet]
@@ -51,7 +59,7 @@ namespace Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] RoleDto dto)
         {
-            var item = new Role
+            var role = new Role
             {
                 Name = dto.Name,
                 Description = dto.Description,
@@ -59,9 +67,39 @@ namespace Controllers
                 IsActive = dto.IsActive,
                 CreatedAt = DateTime.UtcNow
             };
-            await _repository.AddAsync(item);
-            dto.Id = item.Id;
-            return CreatedAtAction(nameof(GetById), new { id = item.Id }, dto);
+            await _repository.AddAsync(role);
+            dto.Id = role.Id;
+
+            // Auto-create role-based UserGroup + DynamicGroupingRule
+            var group = new UserGroup
+            {
+                Name = $"{role.Name} Role",
+                Description = $"Auto-generated group for role: {role.Name}",
+                Type = GroupType.Role,
+                RoleId = role.Id,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _userGroupRepository.AddAsync(group);
+
+            var rule = new DynamicGroupingRule
+            {
+                Name = $"{role.Name} Role Rule",
+                Description = $"Auto-assign users with {role.Name} role",
+                Field = "User.Role.Name",
+                Operator = RuleOperator.Equals,
+                Value = role.Name,
+                IsDynamicValue = false,
+                IsHidden = true,
+                RuleType = RuleType.Simple,
+                UserGroupId = group.Id,
+                AutoAssign = true,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _ruleRepository.AddAsync(rule);
+
+            return CreatedAtAction(nameof(GetById), new { id = role.Id }, dto);
         }
 
         [HttpPut("{id}")]
