@@ -49,6 +49,32 @@ FROM "Roles"
 WHERE "Name" = 'admin'
 ON CONFLICT ("Email") DO NOTHING;
 
+-- Seed a UserGroup for each Role (GroupType.Role = 0)
+-- One INSERT per role; skips if a group already exists for that role.
+INSERT INTO "UserGroups" ("Id", "Name", "Description", "Type", "RoleId", "IsActive", "IsDeleted", "CreatedAt", "OrganizationId")
+SELECT gen_random_uuid(), 'super-admin Role', 'Auto-generated group for role: super-admin', 0, r."Id", true, false, NOW(), r."OrganizationId"
+FROM "Roles" r
+WHERE r."Name" = 'super-admin' AND r."OrganizationId" = org_id
+  AND NOT EXISTS (SELECT 1 FROM "UserGroups" g WHERE g."RoleId" = r."Id" AND g."Type" = 0 AND g."IsDeleted" = false);
+
+INSERT INTO "UserGroups" ("Id", "Name", "Description", "Type", "RoleId", "IsActive", "IsDeleted", "CreatedAt", "OrganizationId")
+SELECT gen_random_uuid(), 'sys-admin Role', 'Auto-generated group for role: sys-admin', 0, r."Id", true, false, NOW(), r."OrganizationId"
+FROM "Roles" r
+WHERE r."Name" = 'sys-admin' AND r."OrganizationId" = org_id
+  AND NOT EXISTS (SELECT 1 FROM "UserGroups" g WHERE g."RoleId" = r."Id" AND g."Type" = 0 AND g."IsDeleted" = false);
+
+INSERT INTO "UserGroups" ("Id", "Name", "Description", "Type", "RoleId", "IsActive", "IsDeleted", "CreatedAt", "OrganizationId")
+SELECT gen_random_uuid(), 'admin Role', 'Auto-generated group for role: admin', 0, r."Id", true, false, NOW(), r."OrganizationId"
+FROM "Roles" r
+WHERE r."Name" = 'admin' AND r."OrganizationId" = org_id
+  AND NOT EXISTS (SELECT 1 FROM "UserGroups" g WHERE g."RoleId" = r."Id" AND g."Type" = 0 AND g."IsDeleted" = false);
+
+INSERT INTO "UserGroups" ("Id", "Name", "Description", "Type", "RoleId", "IsActive", "IsDeleted", "CreatedAt", "OrganizationId")
+SELECT gen_random_uuid(), 'user Role', 'Auto-generated group for role: user', 0, r."Id", true, false, NOW(), r."OrganizationId"
+FROM "Roles" r
+WHERE r."Name" = 'user' AND r."OrganizationId" = org_id
+  AND NOT EXISTS (SELECT 1 FROM "UserGroups" g WHERE g."RoleId" = r."Id" AND g."Type" = 0 AND g."IsDeleted" = false);
+
 END $$;
 
 -- Seed App Permissions (CRUD + common actions)
