@@ -32,7 +32,7 @@ namespace Infrastructure.Persistence.Repositories
             var hiddenRole = new string[] { "super-admin Role", "sys-admin Role" };
             var query = _context.UserGroups
                 .Where(g => !g.IsDeleted && g.Type != Core.Enums.GroupType.Organization && !hiddenRole.Contains(g.Name))
-                .OrderByDescending(g => g.CreatedAt);
+                .OrderBy(g => g.CreatedAt);
 
             var totalCount = await query.CountAsync();
             var items = await query.Skip(pageRequest.Skip).Take(pageRequest.PageSize).ToListAsync();
