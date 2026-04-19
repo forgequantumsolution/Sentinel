@@ -138,22 +138,20 @@ namespace Infrastructure.Services
                 await EnsureOrgHasPermissionAsync(actionObjectId, permissionId, group.OrganizationId.Value, "group");
             }
 
-            // Check for existing assignment
+            // Check for existing assignment — include soft-deleted to reuse the row
             var existing = await _context.ActionObjectPermissionAssignments
                 .FirstOrDefaultAsync(a =>
                     a.ActionObjectId == actionObjectId &&
                     a.PermissionId == permissionId &&
                     a.AssigneeType == assigneeType &&
-                    a.AssigneeId == assigneeId && !a.IsDeleted);
+                    a.AssigneeId == assigneeId);
 
             if (existing != null)
             {
-                if (!existing.IsActive)
-                {
-                    existing.IsActive = true;
-                    existing.UpdatedAt = DateTime.UtcNow;
-                    await _context.SaveChangesAsync();
-                }
+                // Reactivate (handles both inactive and previously-revoked rows)
+                existing.IsActive = true;
+                existing.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
                 return existing;
             }
 
@@ -201,8 +199,6 @@ namespace Infrastructure.Services
             if (assignment != null)
             {
                 assignment.IsActive = false;
-                assignment.IsDeleted = true;
-                assignment.DeletedAt = DateTime.UtcNow;
                 assignment.UpdatedAt = DateTime.UtcNow;
             }
 
@@ -222,8 +218,6 @@ namespace Infrastructure.Services
                 foreach (var d in groupAssignments)
                 {
                     d.IsActive = false;
-                    d.IsDeleted = true;
-                    d.DeletedAt = DateTime.UtcNow;
                     d.UpdatedAt = DateTime.UtcNow;
                 }
             }
