@@ -1,4 +1,5 @@
 using Core.Entities;
+using Application.Common.Pagination;
 using Application.Interfaces.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,6 +25,24 @@ namespace Infrastructure.Persistence.Repositories
         public async Task<List<UserGroup>> GetAllAsync()
         {
             return await _context.UserGroups.ToListAsync();
+        }
+
+        public async Task<PagedResult<UserGroup>> GetAllAsync(PageRequest pageRequest)
+        {
+            var query = _context.UserGroups
+                .Where(g => !g.IsDeleted)
+                .OrderByDescending(g => g.CreatedAt);
+
+            var totalCount = await query.CountAsync();
+            var items = await query.Skip(pageRequest.Skip).Take(pageRequest.PageSize).ToListAsync();
+
+            return new PagedResult<UserGroup>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = pageRequest.Page,
+                PageSize = pageRequest.PageSize
+            };
         }
 
         public async Task<List<UserGroup>> GetAllWithRulesAsync()
