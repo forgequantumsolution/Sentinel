@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Application.Interfaces.Persistence;
+using Application.Interfaces.Services;
 using Application.DTOs;
 using Core.Entities;
-using Core.Enums;
 
 namespace Controllers
 {
@@ -11,20 +11,14 @@ namespace Controllers
     public class OrganizationsController : ControllerBase
     {
         private readonly IOrganizationRepository _repository;
-        private readonly IRoleRepository _roleRepository;
-        private readonly IUserGroupRepository _userGroupRepository;
-        private readonly IDynamicGroupingRuleRepository _ruleRepository;
+        private readonly IAutoGroupProvisioningService _provisioning;
 
         public OrganizationsController(
             IOrganizationRepository repository,
-            IRoleRepository roleRepository,
-            IUserGroupRepository userGroupRepository,
-            IDynamicGroupingRuleRepository ruleRepository)
+            IAutoGroupProvisioningService provisioning)
         {
             _repository = repository;
-            _roleRepository = roleRepository;
-            _userGroupRepository = userGroupRepository;
-            _ruleRepository = ruleRepository;
+            _provisioning = provisioning;
         }
 
         [HttpGet]
@@ -75,8 +69,11 @@ namespace Controllers
             };
             await _repository.AddAsync(org);
 
-            // Auto-create an admin role for the new organization
-            await _roleRepository.AddAsync(new Role
+            // Auto-create org-level UserGroup + DynamicGroupingRule
+            await _provisioning.CreateOrganizationGroupAsync(org);
+
+            // Auto-create default roles (each with its own group + dynamic grouping rule)
+            await _provisioning.CreateRoleWithGroupAsync(new Role
             {
                 Name = "admin",
                 Description = $"Administrator - Full access for {org.Name}",
@@ -86,37 +83,15 @@ namespace Controllers
                 CreatedAt = DateTime.UtcNow
             });
 
-            // Auto-create org-based UserGroup + DynamicGroupingRule
-            // OrganizationId is set explicitly so the new group/rule belong to the new org,
-            // not the current request's tenant.
-            var group = new UserGroup
+            await _provisioning.CreateRoleWithGroupAsync(new Role
             {
-                Name = $"{org.Name} Organization",
-                Description = $"Auto-generated group for organization: {org.Name}",
-                Type = GroupType.Group,
-                OrganizationId = org.Id,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            };
-            await _userGroupRepository.AddAsync(group);
-
-            var rule = new DynamicGroupingRule
-            {
-                Name = $"{org.Name} Organization Rule",
-                Description = $"Auto-assign users in {org.Name} organization",
-                Field = "User.OrganizationId",
-                Operator = RuleOperator.Equals,
-                Value = org.Id.ToString(),
-                IsDynamicValue = false,
-                IsHidden = true,
-                RuleType = RuleType.Simple,
-                UserGroupId = group.Id,
-                AutoAssign = true,
+                Name = "user",
+                Description = $"Standard user - Basic access for {org.Name}",
+                IsDefault = true,
                 IsActive = true,
                 OrganizationId = org.Id,
                 CreatedAt = DateTime.UtcNow
-            };
-            await _ruleRepository.AddAsync(rule);
+            });
 
             dto.Id = org.Id;
             return CreatedAtAction(nameof(GetById), new { id = org.Id }, dto);

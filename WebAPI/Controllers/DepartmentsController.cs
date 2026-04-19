@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Application.Interfaces.Persistence;
+using Application.Interfaces.Services;
 using Application.DTOs;
 using Core.Entities;
-using Core.Enums;
 
 namespace Controllers
 {
@@ -11,17 +11,12 @@ namespace Controllers
     public class DepartmentsController : ControllerBase
     {
         private readonly IDepartmentRepository _repository;
-        private readonly IUserGroupRepository _userGroupRepository;
-        private readonly IDynamicGroupingRuleRepository _ruleRepository;
+        private readonly IAutoGroupProvisioningService _provisioning;
 
-        public DepartmentsController(
-            IDepartmentRepository repository,
-            IUserGroupRepository userGroupRepository,
-            IDynamicGroupingRuleRepository ruleRepository)
+        public DepartmentsController(IDepartmentRepository repository, IAutoGroupProvisioningService provisioning)
         {
             _repository = repository;
-            _userGroupRepository = userGroupRepository;
-            _ruleRepository = ruleRepository;
+            _provisioning = provisioning;
         }
 
         [HttpGet]
@@ -70,37 +65,9 @@ namespace Controllers
                 IsActive = dto.IsActive,
                 CreatedAt = DateTime.UtcNow
             };
-            await _repository.AddAsync(dept);
+
+            await _provisioning.CreateDepartmentWithGroupAsync(dept);
             dto.Id = dept.Id;
-
-            // Auto-create department-based UserGroup + DynamicGroupingRule
-            var group = new UserGroup
-            {
-                Name = $"{dept.Name} Department",
-                Description = $"Auto-generated group for department: {dept.Name}",
-                Type = GroupType.Department,
-                DepartmentId = dept.Id,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            };
-            await _userGroupRepository.AddAsync(group);
-
-            var rule = new DynamicGroupingRule
-            {
-                Name = $"{dept.Name} Department Rule",
-                Description = $"Auto-assign users in {dept.Name} department",
-                Field = "User.DepartmentId",
-                Operator = RuleOperator.Equals,
-                Value = dept.Id.ToString(),
-                IsDynamicValue = false,
-                IsHidden = true,
-                RuleType = RuleType.Simple,
-                UserGroupId = group.Id,
-                AutoAssign = true,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            };
-            await _ruleRepository.AddAsync(rule);
 
             return CreatedAtAction(nameof(GetById), new { id = dept.Id }, dto);
         }

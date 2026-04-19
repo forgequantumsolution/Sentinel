@@ -257,25 +257,22 @@ namespace Infrastructure.Services
                     a.IsActive && !a.IsDeleted);
         }
 
-        public async Task<PagedResult<ActionObjectPermissionAssignment>> GetUserAssignmentsAsync(Guid userId, PageRequest pageRequest)
+        public async Task<PagedResult<UserGroupMembership>> GetUserAssignmentsAsync(Guid userId, PageRequest pageRequest)
         {
-            // User's effective permissions are the union of permissions assigned to their groups (via SQL VIEW).
-            var userGroupIds = _context.UserGroupMemberships
-                .Where(m => m.UserId == userId)
-                .Select(m => m.UserGroupId);
-
-            var query = _context.ActionObjectPermissionAssignments
-                .Include(a => a.ActionObject)
-                .Include(a => a.Permission)
-                .Where(a =>
-                    a.AssigneeType == AssigneeType.Group &&
-                    userGroupIds.Contains(a.AssigneeId) &&
-                    a.IsActive && !a.IsDeleted);
+            // The SQL VIEW (vw_UserGroupMemberships) already resolves the full chain:
+            // User → Group → ActionObject + Permission (including admin role override).
+            var query = _context.UserGroupMemberships
+                .Include(m => m.UserGroup)
+                .Include(m => m.ActionObject)
+                .Include(m => m.Permission)
+                .Where(m => m.UserId == userId
+                         && m.ActionObjectId != null
+                         && m.PermissionId != null);
 
             var totalCount = await query.CountAsync();
             var items = await query.Skip(pageRequest.Skip).Take(pageRequest.PageSize).ToListAsync();
 
-            return new PagedResult<ActionObjectPermissionAssignment>
+            return new PagedResult<UserGroupMembership>
             {
                 Items = items,
                 TotalCount = totalCount,
@@ -284,21 +281,32 @@ namespace Infrastructure.Services
             };
         }
 
-        public async Task<PagedResult<ActionObjectPermissionAssignment>> GetGroupAssignmentsAsync(Guid groupId, PageRequest pageRequest)
+        public async Task<PagedResult<UserGroupMembership>> GetGroupAssignmentsAsync(Guid groupId, PageRequest pageRequest)
         {
-            var query = _context.ActionObjectPermissionAssignments
-                .Include(a => a.ActionObject)
-                .Include(a => a.Permission)
-                .Where(a =>
-                    a.AssigneeType == AssigneeType.Group &&
-                    a.AssigneeId == groupId &&
-                    a.IsActive && !a.IsDeleted)
-                .OrderBy(a => a.ActionObject.Name);
+            // Read effective permissions for the group from the SQL VIEW.
+            // DISTINCT on (ActionObjectId, PermissionId) since the view returns one row per user-permission combo.
+            var query = _context.UserGroupMemberships
+                .Include(m => m.UserGroup)
+                .Include(m => m.ActionObject)
+                .Include(m => m.Permission)
+                .Where(m => m.UserGroupId == groupId
+                         && m.ActionObjectId != null
+                         && m.PermissionId != null);
 
-            var totalCount = await query.CountAsync();
-            var items = await query.Skip(pageRequest.Skip).Take(pageRequest.PageSize).ToListAsync();
+            var distinct = query
+                .Select(m => new { m.ActionObjectId, m.PermissionId })
+                .Distinct();
 
-            return new PagedResult<ActionObjectPermissionAssignment>
+            var totalCount = await distinct.CountAsync();
+
+            var items = await query
+                .GroupBy(m => new { m.ActionObjectId, m.PermissionId })
+                .Select(g => g.First())
+                .Skip(pageRequest.Skip)
+                .Take(pageRequest.PageSize)
+                .ToListAsync();
+
+            return new PagedResult<UserGroupMembership>
             {
                 Items = items,
                 TotalCount = totalCount,

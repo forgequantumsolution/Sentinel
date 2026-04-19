@@ -96,9 +96,10 @@ namespace Controllers
 
                 // Map to DTOs
                 var permissions = pagedAssignments.Items
+                    .Where(a => a.ActionObject != null && a.Permission != null)
                     .Select(a => new ActionObjectPermissionDto
                     {
-                        ActionObjectId = a.ActionObject.Id,
+                        ActionObjectId = a.ActionObject!.Id,
                         ActionObject = new ActionObjectDto
                         {
                             Id = a.ActionObject.Id,
@@ -111,7 +112,7 @@ namespace Controllers
                             IsActive = a.ActionObject.IsActive,
                             CreatedAt = a.ActionObject.CreatedAt
                         },
-                        PermissionId = a.Permission.Id,
+                        PermissionId = a.Permission!.Id,
                         Permission = new AppPermissionDto
                         {
                             Id = a.Permission.Id,

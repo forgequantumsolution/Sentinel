@@ -23,8 +23,8 @@ namespace Application.Interfaces.Services
         // ── Queries ──
         Task<bool> UserHasPermissionAsync(Guid userId, string actionObjectCode, string permissionCode);
         Task<bool> OrgHasPermissionAsync(Guid orgId, Guid actionObjectId, Guid permissionId);
-        Task<PagedResult<ActionObjectPermissionAssignment>> GetUserAssignmentsAsync(Guid userId, PageRequest pageRequest);
+        Task<PagedResult<UserGroupMembership>> GetUserAssignmentsAsync(Guid userId, PageRequest pageRequest);
         Task<PagedResult<ActionObjectPermissionAssignment>> GetOrgAssignmentsAsync(Guid orgId, PageRequest pageRequest);
-        Task<PagedResult<ActionObjectPermissionAssignment>> GetGroupAssignmentsAsync(Guid groupId, PageRequest pageRequest);
+        Task<PagedResult<UserGroupMembership>> GetGroupAssignmentsAsync(Guid groupId, PageRequest pageRequest);
     }
 }

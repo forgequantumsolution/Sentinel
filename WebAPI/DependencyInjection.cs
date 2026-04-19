@@ -115,6 +115,7 @@ namespace WebAPI
             services.AddScoped<IAppFolderService, AppFolderService>();
             services.AddScoped<IGroupMembershipService, GroupMembershipService>();
             services.AddSingleton<IRuleFieldService, RuleFieldService>();
+            services.AddScoped<IAutoGroupProvisioningService, AutoGroupProvisioningService>();
 
             return services;
         }
