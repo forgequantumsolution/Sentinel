@@ -9,6 +9,7 @@ namespace Core.Enums
         Team,
         Folder,
         File,
-        Request
+        Request,
+        Organization
     }
 }

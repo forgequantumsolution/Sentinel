@@ -236,15 +236,13 @@ namespace Infrastructure.Services
                 .Where(m => m.UserId == userId)
                 .Select(m => m.UserGroupId);
 
-            return await _context.ActionObjectPermissionAssignments
+            return await _context.UserGroupMemberships
                 .Include(a => a.ActionObject)
                 .Include(a => a.Permission)
                 .AnyAsync(a =>
                     a.ActionObject.Code == actionObjectCode &&
                     a.Permission.Code == permissionCode &&
-                    a.AssigneeType == AssigneeType.Group &&
-                    userGroupIds.Contains(a.AssigneeId) &&
-                    a.IsActive && !a.IsDeleted);
+                    userGroupIds.Contains(a.UserGroupId));
         }
 
         public async Task<bool> OrgHasPermissionAsync(Guid orgId, Guid actionObjectId, Guid permissionId)
