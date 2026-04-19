@@ -1,4 +1,5 @@
 using Application.Common.Pagination;
+using Application.DTOs;
 using Core.Entities;
 using Core.Enums;
 
@@ -25,6 +26,6 @@ namespace Application.Interfaces.Services
         Task<bool> OrgHasPermissionAsync(Guid orgId, Guid actionObjectId, Guid permissionId);
         Task<PagedResult<UserGroupMembership>> GetUserAssignmentsAsync(Guid userId, PageRequest pageRequest);
         Task<PagedResult<ActionObjectPermissionAssignment>> GetOrgAssignmentsAsync(Guid orgId, PageRequest pageRequest);
-        Task<PagedResult<UserGroupMembership>> GetGroupAssignmentsAsync(Guid groupId, PageRequest pageRequest);
+        Task<PagedResult<ActionObjectWithPermissionsDto>> GetGroupAssignmentsAsync(Guid groupId, Guid? parentObjectId, PageRequest pageRequest);
     }
 }
