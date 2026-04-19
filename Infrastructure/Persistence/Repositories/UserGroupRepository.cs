@@ -29,8 +29,9 @@ namespace Infrastructure.Persistence.Repositories
 
         public async Task<PagedResult<UserGroup>> GetAllAsync(PageRequest pageRequest)
         {
+            var hiddenRole = new string[] { "super-admin Role", "sys-admin Role" };
             var query = _context.UserGroups
-                .Where(g => !g.IsDeleted)
+                .Where(g => !g.IsDeleted && g.Type != Core.Enums.GroupType.Organization && !hiddenRole.Contains(g.Name))
                 .OrderByDescending(g => g.CreatedAt);
 
             var totalCount = await query.CountAsync();
