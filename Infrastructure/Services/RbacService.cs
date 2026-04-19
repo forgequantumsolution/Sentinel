@@ -128,6 +128,7 @@ namespace Infrastructure.Services
             {
                 var group = await _context.UserGroups
                     .IgnoreQueryFilters()
+                    .Include(g => g.Role)
                     .FirstOrDefaultAsync(g => g.Id == assigneeId);
 
                 if (group == null)
@@ -135,6 +136,8 @@ namespace Infrastructure.Services
 
                 if (!group.OrganizationId.HasValue)
                     throw new InvalidOperationException("UserGroup does not belong to any organization.");
+
+                EnsureNotAdminRoleGroup(group);
 
                 await EnsureOrgHasPermissionAsync(actionObjectId, permissionId, group.OrganizationId.Value, "group");
             }
@@ -170,6 +173,16 @@ namespace Infrastructure.Services
             return assignment;
         }
 
+        private static readonly string[] AdminRoleNames = ["super-admin", "sys-admin", "admin"];
+
+        private static void EnsureNotAdminRoleGroup(UserGroup group)
+        {
+            if (group.Role != null && AdminRoleNames.Contains(group.Role.Name))
+                throw new InvalidOperationException(
+                    $"Permissions for the '{group.Role.Name}' role group cannot be modified. " +
+                    "Admin role groups are granted all permissions automatically.");
+        }
+
         private async Task EnsureOrgHasPermissionAsync(Guid actionObjectId, Guid permissionId, Guid orgId, string assigneeLabel)
         {
             var orgHasAccess = await _context.ActionObjectPermissionAssignments
@@ -190,6 +203,17 @@ namespace Infrastructure.Services
         public async Task RevokeAsync(
             Guid actionObjectId, Guid permissionId, AssigneeType assigneeType, Guid assigneeId)
         {
+            // Block revoking from admin role groups (their permissions are managed by the system).
+            if (assigneeType == AssigneeType.Group)
+            {
+                var group = await _context.UserGroups
+                    .IgnoreQueryFilters()
+                    .Include(g => g.Role)
+                    .FirstOrDefaultAsync(g => g.Id == assigneeId);
+
+                if (group != null) EnsureNotAdminRoleGroup(group);
+            }
+
             var assignment = await _context.ActionObjectPermissionAssignments
                 .FirstOrDefaultAsync(a =>
                     a.ActionObjectId == actionObjectId &&
