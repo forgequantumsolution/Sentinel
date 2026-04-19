@@ -92,6 +92,13 @@ namespace Application.DTOs
         public AppPermissionDto? Permission { get; set; }
     }
 
+    public class ActionObjectWithPermissionsDto
+    {
+        public Guid ActionObjectId { get; set; }
+        public ActionObjectDto? ActionObject { get; set; }
+        public List<AppPermissionDto> Permissions { get; set; } = new();
+    }
+
     public class UserPermissionsDto
     {
         public Guid UserId { get; set; }

@@ -25,5 +25,6 @@ namespace Application.Interfaces.Services
         Task<bool> OrgHasPermissionAsync(Guid orgId, Guid actionObjectId, Guid permissionId);
         Task<PagedResult<ActionObjectPermissionAssignment>> GetUserAssignmentsAsync(Guid userId, PageRequest pageRequest);
         Task<PagedResult<ActionObjectPermissionAssignment>> GetOrgAssignmentsAsync(Guid orgId, PageRequest pageRequest);
+        Task<PagedResult<ActionObjectPermissionAssignment>> GetGroupAssignmentsAsync(Guid groupId, PageRequest pageRequest);
     }
 }

@@ -16,6 +16,13 @@ namespace Core.Enums
         /// Permission is assigned to a specific user within an organization.
         /// The user can only be granted this if the org already has it.
         /// </summary>
-        User = 1
+        User = 1,
+
+        /// <summary>
+        /// Permission is assigned to a UserGroup.
+        /// All users in the group inherit the permission.
+        /// The group's organization must already have the permission.
+        /// </summary>
+        Group = 2
     }
 }

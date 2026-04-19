@@ -109,6 +109,54 @@ namespace Controllers
         }
 
         /// <summary>
+        /// Get all action object permissions assigned to a specific group
+        /// </summary>
+        [HttpGet("group/{groupId}/permissions")]
+        public async Task<IActionResult> GetGroupPermissions(Guid groupId, [FromQuery] PageRequest pageRequest)
+        {
+            var pagedAssignments = await _rbacService.GetGroupAssignmentsAsync(groupId, pageRequest);
+
+            // Group by ActionObject so each object shows its assigned permissions
+            var grouped = pagedAssignments.Items
+                .GroupBy(a => a.ActionObject)
+                .Select(g => new ActionObjectWithPermissionsDto
+                {
+                    ActionObjectId = g.Key.Id,
+                    ActionObject = new ActionObjectDto
+                    {
+                        Id = g.Key.Id,
+                        Name = g.Key.Name,
+                        Code = g.Key.Code,
+                        Description = g.Key.Description,
+                        ObjectType = g.Key.ObjectType.ToString(),
+                        Route = g.Key.Route,
+                        Icon = g.Key.Icon,
+                        SortOrder = g.Key.SortOrder,
+                        ParentObjectId = g.Key.ParentObjectId,
+                        IsActive = g.Key.IsActive,
+                        CreatedAt = g.Key.CreatedAt
+                    },
+                    Permissions = g.Select(a => new AppPermissionDto
+                    {
+                        Id = a.Permission.Id,
+                        Name = a.Permission.Name,
+                        Code = a.Permission.Code,
+                        Description = a.Permission.Description,
+                        IsActive = a.Permission.IsActive
+                    }).ToList()
+                })
+                .ToList();
+
+            return Ok(new PagedResult<ActionObjectWithPermissionsDto>
+            {
+                Items = grouped,
+                TotalCount = pagedAssignments.TotalCount,
+                Page = pagedAssignments.Page,
+                PageSize = pagedAssignments.PageSize
+            });
+        }
+
+        /// <summary>
         /// Get all permissions available in the system
         /// </summary>
         [HttpGet("permissions")]
