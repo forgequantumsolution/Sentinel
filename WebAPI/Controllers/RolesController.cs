@@ -86,9 +86,9 @@ namespace Controllers
             {
                 Name = $"{role.Name} Role Rule",
                 Description = $"Auto-assign users with {role.Name} role",
-                Field = "User.Role.Name",
+                Field = "User.RoleId",
                 Operator = RuleOperator.Equals,
-                Value = role.Name,
+                Value = role.Id.ToString(),
                 IsDynamicValue = false,
                 IsHidden = true,
                 RuleType = RuleType.Simple,

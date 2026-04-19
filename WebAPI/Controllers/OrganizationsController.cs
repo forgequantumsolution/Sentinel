@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Application.Interfaces.Persistence;
 using Application.DTOs;
 using Core.Entities;
+using Core.Enums;
 
 namespace Controllers
 {
@@ -11,11 +12,19 @@ namespace Controllers
     {
         private readonly IOrganizationRepository _repository;
         private readonly IRoleRepository _roleRepository;
+        private readonly IUserGroupRepository _userGroupRepository;
+        private readonly IDynamicGroupingRuleRepository _ruleRepository;
 
-        public OrganizationsController(IOrganizationRepository repository, IRoleRepository roleRepository)
+        public OrganizationsController(
+            IOrganizationRepository repository,
+            IRoleRepository roleRepository,
+            IUserGroupRepository userGroupRepository,
+            IDynamicGroupingRuleRepository ruleRepository)
         {
             _repository = repository;
             _roleRepository = roleRepository;
+            _userGroupRepository = userGroupRepository;
+            _ruleRepository = ruleRepository;
         }
 
         [HttpGet]
@@ -55,7 +64,7 @@ namespace Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] OrganizationDto dto)
         {
-            var item = new Organization
+            var org = new Organization
             {
                 Name = dto.Name,
                 Code = dto.Code,
@@ -64,21 +73,53 @@ namespace Controllers
                 IsActive = dto.IsActive,
                 CreatedAt = DateTime.UtcNow
             };
-            await _repository.AddAsync(item);
+            await _repository.AddAsync(org);
 
             // Auto-create an admin role for the new organization
             await _roleRepository.AddAsync(new Role
             {
-                Name = $"admin",
-                Description = $"Administrator - Full access for {item.Name}",
+                Name = "admin",
+                Description = $"Administrator - Full access for {org.Name}",
                 IsDefault = false,
                 IsActive = true,
-                OrganizationId = item.Id,
+                OrganizationId = org.Id,
                 CreatedAt = DateTime.UtcNow
             });
 
-            dto.Id = item.Id;
-            return CreatedAtAction(nameof(GetById), new { id = item.Id }, dto);
+            // Auto-create org-based UserGroup + DynamicGroupingRule
+            // OrganizationId is set explicitly so the new group/rule belong to the new org,
+            // not the current request's tenant.
+            var group = new UserGroup
+            {
+                Name = $"{org.Name} Organization",
+                Description = $"Auto-generated group for organization: {org.Name}",
+                Type = GroupType.Group,
+                OrganizationId = org.Id,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _userGroupRepository.AddAsync(group);
+
+            var rule = new DynamicGroupingRule
+            {
+                Name = $"{org.Name} Organization Rule",
+                Description = $"Auto-assign users in {org.Name} organization",
+                Field = "User.OrganizationId",
+                Operator = RuleOperator.Equals,
+                Value = org.Id.ToString(),
+                IsDynamicValue = false,
+                IsHidden = true,
+                RuleType = RuleType.Simple,
+                UserGroupId = group.Id,
+                AutoAssign = true,
+                IsActive = true,
+                OrganizationId = org.Id,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _ruleRepository.AddAsync(rule);
+
+            dto.Id = org.Id;
+            return CreatedAtAction(nameof(GetById), new { id = org.Id }, dto);
         }
 
         [HttpPut("{id}")]
