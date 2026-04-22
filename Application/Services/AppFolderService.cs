@@ -250,6 +250,7 @@ namespace Application.Services
                             Data = payload?.Data ?? TryParseJson(config.Data),
                             Meta = payload?.Meta ?? config.Meta,
                             FiltersParams = config.FiltersParams,
+                            ClientSideCalc = payload?.ClientSideCalc ?? false,
                             IsActive = config.IsActive,
                             CreatedAt = config.CreatedAt,
                             UpdatedAt = config.UpdatedAt,

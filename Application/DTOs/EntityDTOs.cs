@@ -137,6 +137,13 @@ namespace Application.DTOs
 
         public Dictionary<string, object>? Meta { get; set; }
         public Dictionary<string, object>? FiltersParams { get; set; }
+
+        /// <summary>
+        /// When true, Data is an opaque config the client must parse and calculate locally
+        /// (e.g. LocalExcel). The server has not transformed it into GraphData.
+        /// </summary>
+        public bool ClientSideCalc { get; set; }
+
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
