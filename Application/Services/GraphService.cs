@@ -259,6 +259,13 @@ namespace Application.Services
                 return payload;
             }
 
+            if (dataDef.Source.Type == DataSourceType.LocalExcel)
+            {
+                payload.ClientSideCalc = true;
+                payload.Data = dataDef.Source.LocalExcel?.Config ?? ParseJsonElement(graphConfig.Data);
+                return payload;
+            }
+
             // Merge FE filters with saved GlobalFilter
             var effectiveFilter = MergeFilters(dataDef.GlobalFilter, request?.Filters);
             var effectiveSortRules = request?.SortRules ?? dataDef.SortRules;
