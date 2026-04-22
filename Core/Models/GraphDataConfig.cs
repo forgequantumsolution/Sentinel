@@ -1,4 +1,5 @@
-﻿using Core.Enums;
+﻿using System.Text.Json;
+using Core.Enums;
 
 namespace Core.Models;
 
@@ -41,6 +42,18 @@ public class DataSourceDefinition
     public RestApiSourceConfig? RestApi { get; set; }
     public CsvSourceConfig? Csv { get; set; }
     public DynamicFormSourceConfig? DynamicForm { get; set; }
+    public LocalExcelSourceConfig? LocalExcel { get; set; }
+}
+
+// ─── Local Excel Source Config ────────────────────────────────────────────────
+
+/// <summary>
+/// Opaque config for client-side Excel processing. The server saves and returns
+/// this payload as-is — all parsing and calculation happens in the browser.
+/// </summary>
+public class LocalExcelSourceConfig
+{
+    public JsonElement? Config { get; set; }
 }
 
 // ─── SQL / StoredProcedure Source Config ──────────────────────────────────────

@@ -40,7 +40,7 @@ public enum AxisScaleType
     Category
 }
 
-public enum DataSourceType { SqlQuery, RestApi, InMemory, CsvFile, StoredProcedure, DynamicForm }
+public enum DataSourceType { SqlQuery, RestApi, InMemory, CsvFile, StoredProcedure, DynamicForm, LocalExcel }
 public enum AggregationType { None, Sum, Avg, Count, Min, Max, CountDistinct }
 public enum SortDirection { Asc, Desc }
 public enum FilterOperator { Eq, NotEq, Gt, Gte, Lt, Lte, In, NotIn, Like, IsNull, IsNotNull }
