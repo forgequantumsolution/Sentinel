@@ -94,33 +94,40 @@ namespace Controllers
                 // Get user's action object permission assignments
                 var pagedAssignments = await _rbacService.GetUserAssignmentsAsync(userId, new Application.Common.Pagination.PageRequest { Page = 1, PageSize = 100 });
 
-                // Map to DTOs
+                // Map to DTOs — group permissions per ActionObject
                 var permissions = pagedAssignments.Items
                     .Where(a => a.ActionObject != null && a.Permission != null)
-                    .Select(a => new ActionObjectPermissionDto
+                    .GroupBy(a => a.ActionObject!.Id)
+                    .Select(g =>
                     {
-                        ActionObjectId = a.ActionObject!.Id,
-                        ActionObject = new ActionObjectDto
+                        var ao = g.First().ActionObject!;
+                        return new ActionObjectWithPermissionsDto
                         {
-                            Id = a.ActionObject.Id,
-                            Name = a.ActionObject.Name,
-                            Code = a.ActionObject.Code,
-                            Description = a.ActionObject.Description,
-                            ObjectType = a.ActionObject.ObjectType.ToString(),
-                            Route = a.ActionObject.Route,
-                            ParentObjectId = a.ActionObject.ParentObjectId,
-                            IsActive = a.ActionObject.IsActive,
-                            CreatedAt = a.ActionObject.CreatedAt
-                        },
-                        PermissionId = a.Permission!.Id,
-                        Permission = new AppPermissionDto
-                        {
-                            Id = a.Permission.Id,
-                            Name = a.Permission.Name,
-                            Code = a.Permission.Code,
-                            Description = a.Permission.Description,
-                            IsActive = a.Permission.IsActive
-                        }
+                            ActionObjectId = ao.Id,
+                            ActionObject = new ActionObjectDto
+                            {
+                                Id = ao.Id,
+                                Name = ao.Name,
+                                Code = ao.Code,
+                                Description = ao.Description,
+                                ObjectType = ao.ObjectType.ToString(),
+                                Route = ao.Route,
+                                ParentObjectId = ao.ParentObjectId,
+                                IsActive = ao.IsActive,
+                                CreatedAt = ao.CreatedAt
+                            },
+                            Permissions = g.Select(a => a.Permission!)
+                                .DistinctBy(p => p.Id)
+                                .Select(p => new AppPermissionDto
+                                {
+                                    Id = p.Id,
+                                    Name = p.Name,
+                                    Code = p.Code,
+                                    Description = p.Description,
+                                    IsActive = p.IsActive
+                                })
+                                .ToList()
+                        };
                     })
                     .ToList();
 
