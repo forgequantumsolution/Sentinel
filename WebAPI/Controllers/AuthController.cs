@@ -92,7 +92,7 @@ namespace Controllers
                 }
 
                 // Get user's action object permission assignments
-                var pagedAssignments = await _rbacService.GetUserAssignmentsAsync(userId, new Application.Common.Pagination.PageRequest { Page = 1, PageSize = 100 });
+                var pagedAssignments = await _rbacService.GetUserAssignmentsAsync(userId, parentObjectId: null, new Application.Common.Pagination.PageRequest { Page = 1, PageSize = 100 });
 
                 // Map to DTOs — group permissions per ActionObject
                 var permissions = pagedAssignments.Items

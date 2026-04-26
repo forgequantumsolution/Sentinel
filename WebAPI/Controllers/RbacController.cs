@@ -24,13 +24,13 @@ namespace Controllers
         /// Get all action object permissions assigned to a specific user
         /// </summary>
         [HttpGet("user/{userId}/permissions")]
-        public async Task<IActionResult> GetUserPermissions(Guid userId, [FromQuery] PageRequest pageRequest)
+        public async Task<IActionResult> GetUserPermissions(Guid userId, [FromQuery] Guid? parentObjectId, [FromQuery] PageRequest pageRequest)
         {
             var user = await _userService.GetUserByIdAsync(userId);
             if (user == null)
                 return NotFound(new { message = "User not found" });
 
-            var pagedAssignments = await _rbacService.GetUserAssignmentsAsync(userId, pageRequest);
+            var pagedAssignments = await _rbacService.GetUserAssignmentsAsync(userId, parentObjectId, pageRequest);
 
             var result = new UserPermissionsDto
             {
@@ -42,20 +42,7 @@ namespace Controllers
                     .Select(a => new ActionObjectPermissionDto
                     {
                         ActionObjectId = a.ActionObject!.Id,
-                        ActionObject = new ActionObjectDto
-                        {
-                            Id = a.ActionObject.Id,
-                            Name = a.ActionObject.Name,
-                            Code = a.ActionObject.Code,
-                            Description = a.ActionObject.Description,
-                            ObjectType = a.ActionObject.ObjectType.ToString(),
-                            Route = a.ActionObject.Route,
-                            Icon = a.ActionObject.Icon,
-                            SortOrder = a.ActionObject.SortOrder,
-                            ParentObjectId = a.ActionObject.ParentObjectId,
-                            IsActive = a.ActionObject.IsActive,
-                            CreatedAt = a.ActionObject.CreatedAt
-                        },
+                        ActionObject = MapActionObject(a.ActionObject),
                         PermissionId = a.Permission!.Id,
                         Permission = new AppPermissionDto
                         {

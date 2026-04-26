@@ -282,12 +282,13 @@ namespace Infrastructure.Services
                     a.IsActive && !a.IsDeleted);
         }
 
-        public async Task<PagedResult<UserGroupMembership>> GetUserAssignmentsAsync(Guid userId, PageRequest pageRequest)
+        public async Task<PagedResult<UserGroupMembership>> GetUserAssignmentsAsync(Guid userId, Guid? parentObjectId, PageRequest pageRequest)
         {
             // The SQL VIEW (vw_UserGroupMemberships) already resolves the full chain:
             // User → Group → ActionObject + Permission (including admin role override).
             // Exclude inactive/deleted ActionObjects and Url-type entries (those are API
             // endpoints, not UI features) — same shape as GetGroupAssignmentsAsync.
+            // Filter to ActionObjects under the requested parent (or root if null).
             var query = _context.UserGroupMemberships
                 .Include(m => m.UserGroup)
                 .Include(m => m.ActionObject)
@@ -297,10 +298,37 @@ namespace Infrastructure.Services
                          && m.PermissionId != null
                          && m.ActionObject!.IsActive
                          && !m.ActionObject.IsDeleted
-                         && m.ActionObject.ObjectType != ObjectType.Url);
+                         && m.ActionObject.ObjectType != ObjectType.Url
+                         && m.ActionObject.ParentObjectId == parentObjectId);
 
             var totalCount = await query.CountAsync();
             var items = await query.Skip(pageRequest.Skip).Take(pageRequest.PageSize).ToListAsync();
+
+            // Attach first-level children for each ActionObject in the page (single batched query).
+            var parentIds = items
+                .Where(m => m.ActionObject != null)
+                .Select(m => m.ActionObject!.Id)
+                .Distinct()
+                .ToList();
+
+            if (parentIds.Count > 0)
+            {
+                var children = await _context.ActionObjects
+                    .Where(c => c.ParentObjectId != null
+                             && parentIds.Contains(c.ParentObjectId.Value)
+                             && c.IsActive && !c.IsDeleted
+                             && c.ObjectType != ObjectType.Url)
+                    .ToListAsync();
+
+                var childrenByParent = children.GroupBy(c => c.ParentObjectId!.Value)
+                    .ToDictionary(g => g.Key, g => (ICollection<ActionObject>)g.ToList());
+
+                foreach (var m in items)
+                {
+                    if (m.ActionObject != null && childrenByParent.TryGetValue(m.ActionObject.Id, out var kids))
+                        m.ActionObject.ChildObjects = kids;
+                }
+            }
 
             return new PagedResult<UserGroupMembership>
             {
