@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Application.Common.Pagination;
 using Core.Entities;
 using Application.Interfaces.Persistence;
 
@@ -29,39 +30,54 @@ namespace Infrastructure.Persistence.Repositories
             return await BaseQuery().FirstOrDefaultAsync(r => r.Id == id);
         }
 
-        public async Task<List<DynamicGroupObjectPermission>> GetAllAsync()
+        public async Task<PagedResult<DynamicGroupObjectPermission>> GetAllAsync(PageRequest pageRequest)
         {
-            return await BaseQuery().ToListAsync();
+            return await PageAsync(BaseQuery(), pageRequest);
         }
 
-        public async Task<List<DynamicGroupObjectPermission>> GetByUserGroupIdAsync(Guid userGroupId)
+        public async Task<PagedResult<DynamicGroupObjectPermission>> GetByUserGroupIdAsync(Guid userGroupId, PageRequest pageRequest)
         {
-            return await BaseQuery()
-                .Where(r => r.UserGroupId == userGroupId)
-                .ToListAsync();
+            return await PageAsync(
+                BaseQuery().Where(r => r.UserGroupId == userGroupId),
+                pageRequest);
         }
 
-        public async Task<List<DynamicGroupObjectPermission>> GetByActionObjectIdAsync(Guid actionObjectId)
+        public async Task<PagedResult<DynamicGroupObjectPermission>> GetByActionObjectIdAsync(Guid actionObjectId, PageRequest pageRequest)
         {
-            return await BaseQuery()
-                .Where(r => r.ActionObjectPermissionSets.Any(s => s.ActionObjectId == actionObjectId))
-                .ToListAsync();
+            return await PageAsync(
+                BaseQuery().Where(r => r.ActionObjectPermissionSets.Any(s => s.ActionObjectId == actionObjectId)),
+                pageRequest);
         }
 
-        public async Task<List<DynamicGroupObjectPermission>> GetByPermissionIdAsync(Guid permissionId)
+        public async Task<PagedResult<DynamicGroupObjectPermission>> GetByPermissionIdAsync(Guid permissionId, PageRequest pageRequest)
         {
-            return await BaseQuery()
-                .Where(r => r.ActionObjectPermissionSets.Any(s => s.Permissions.Any(p => p.PermissionId == permissionId)))
-                .ToListAsync();
+            return await PageAsync(
+                BaseQuery().Where(r => r.ActionObjectPermissionSets.Any(s => s.Permissions.Any(p => p.PermissionId == permissionId))),
+                pageRequest);
         }
 
-        public async Task<List<DynamicGroupObjectPermission>> GetByActionObjectAndPermissionAsync(Guid actionObjectId, Guid permissionId)
+        public async Task<PagedResult<DynamicGroupObjectPermission>> GetByActionObjectAndPermissionAsync(Guid actionObjectId, Guid permissionId, PageRequest pageRequest)
         {
-            return await BaseQuery()
-                .Where(r => r.ActionObjectPermissionSets.Any(s =>
+            return await PageAsync(
+                BaseQuery().Where(r => r.ActionObjectPermissionSets.Any(s =>
                     s.ActionObjectId == actionObjectId &&
-                    s.Permissions.Any(p => p.PermissionId == permissionId)))
-                .ToListAsync();
+                    s.Permissions.Any(p => p.PermissionId == permissionId))),
+                pageRequest);
+        }
+
+        private static async Task<PagedResult<DynamicGroupObjectPermission>> PageAsync(IQueryable<DynamicGroupObjectPermission> query, PageRequest pageRequest)
+        {
+            var ordered = query.OrderBy(r => r.CreatedAt);
+            var totalCount = await ordered.CountAsync();
+            var items = await ordered.Skip(pageRequest.Skip).Take(pageRequest.PageSize).ToListAsync();
+
+            return new PagedResult<DynamicGroupObjectPermission>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = pageRequest.Page,
+                PageSize = pageRequest.PageSize
+            };
         }
 
         public async Task<List<DynamicGroupObjectPermission>> GetRootRulesAsync()

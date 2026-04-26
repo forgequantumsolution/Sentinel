@@ -1,3 +1,4 @@
+using Application.Common.Pagination;
 using Core.Entities;
 using Application.Interfaces.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -25,11 +26,22 @@ namespace Infrastructure.Persistence.Repositories
             return await _context.Departments.FirstOrDefaultAsync(d => d.Name == name);
         }
 
-        public async Task<List<Department>> GetAllAsync()
+        public async Task<PagedResult<Department>> GetAllAsync(PageRequest pageRequest)
         {
-            return await _context.Departments
+            var query = _context.Departments
                 .Include(d => d.ParentDepartment)
-                .ToListAsync();
+                .OrderBy(d => d.Name);
+
+            var totalCount = await query.CountAsync();
+            var items = await query.Skip(pageRequest.Skip).Take(pageRequest.PageSize).ToListAsync();
+
+            return new PagedResult<Department>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = pageRequest.Page,
+                PageSize = pageRequest.PageSize
+            };
         }
 
         public async Task AddAsync(Department department)

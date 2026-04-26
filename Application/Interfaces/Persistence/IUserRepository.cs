@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using Application.Common.Pagination;
 using Core.Entities;
 
 namespace Application.Interfaces.Persistence
@@ -7,7 +8,7 @@ namespace Application.Interfaces.Persistence
     {
         Task<User?> GetByIdAsync(Guid id);
         Task<User?> GetByEmailAsync(string email);
-        Task<List<User>> GetAllAsync();
+        Task<PagedResult<User>> GetAllAsync(PageRequest pageRequest);
         Task AddAsync(User user);
         Task UpdateAsync(User user);
         Task DeleteAsync(Guid id);

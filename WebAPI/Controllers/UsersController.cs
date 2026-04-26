@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Application.Common.Pagination;
 using Application.DTOs;
 using Core.Entities;
 using Application.Interfaces;
@@ -23,10 +24,10 @@ namespace Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll([FromQuery] PageRequest pageRequest)
         {
-            var users = await _userService.GetAllUsersAsync();
-            var dtos = users.Select(u => new UserDto
+            var paged = await _userService.GetAllUsersAsync(pageRequest);
+            var dtos = paged.Items.Select(u => new UserDto
             {
                 Id = u.Id,
                 Name = u.Name,
@@ -42,7 +43,14 @@ namespace Controllers
                 Status = (int)u.Status,
                 IsActive = u.IsActive
             });
-            return Ok(dtos);
+
+            return Ok(new PagedResult<UserDto>
+            {
+                Items = dtos,
+                TotalCount = paged.TotalCount,
+                Page = paged.Page,
+                PageSize = paged.PageSize
+            });
         }
 
         [HttpGet("{id}")]

@@ -1,3 +1,4 @@
+using Application.Common.Pagination;
 using Core.Entities;
 using Application.Interfaces;
 using Application.Interfaces.Persistence;
@@ -26,9 +27,9 @@ namespace Application.Services
             return await _userRepository.GetByEmailAsync(email);
         }
 
-        public async Task<List<User>> GetAllUsersAsync()
+        public async Task<PagedResult<User>> GetAllUsersAsync(PageRequest pageRequest)
         {
-            return await _userRepository.GetAllAsync();
+            return await _userRepository.GetAllAsync(pageRequest);
         }
 
         public async Task<User> CreateUserAsync(User user, string password)

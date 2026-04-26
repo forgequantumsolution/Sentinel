@@ -1,3 +1,4 @@
+using Application.Common.Pagination;
 using Core.Entities;
 
 namespace Application.Interfaces.Persistence
@@ -6,7 +7,7 @@ namespace Application.Interfaces.Persistence
     {
         Task<Organization?> GetByIdAsync(Guid id);
         Task<Organization?> GetByCodeAsync(string code);
-        Task<List<Organization>> GetAllAsync();
+        Task<PagedResult<Organization>> GetAllAsync(PageRequest pageRequest);
         Task AddAsync(Organization organization);
         Task UpdateAsync(Organization organization);
         Task DeleteAsync(Guid id);

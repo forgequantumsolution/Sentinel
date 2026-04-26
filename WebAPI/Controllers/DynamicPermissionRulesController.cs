@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Application.Common.Pagination;
 using Application.DTOs;
 using Application.Interfaces.Services;
 
@@ -18,9 +19,9 @@ namespace WebAPI.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll([FromQuery] PageRequest pageRequest)
         {
-            var rules = await _ruleService.GetAllAsync();
+            var rules = await _ruleService.GetAllAsync(pageRequest);
             return Ok(rules);
         }
 
@@ -33,30 +34,30 @@ namespace WebAPI.Controllers
         }
 
         [HttpGet("user-group/{userGroupId}")]
-        public async Task<IActionResult> GetByUserGroupId(Guid userGroupId)
+        public async Task<IActionResult> GetByUserGroupId(Guid userGroupId, [FromQuery] PageRequest pageRequest)
         {
-            var rules = await _ruleService.GetByUserGroupIdAsync(userGroupId);
+            var rules = await _ruleService.GetByUserGroupIdAsync(userGroupId, pageRequest);
             return Ok(rules);
         }
 
         [HttpGet("action-object/{actionObjectId}")]
-        public async Task<IActionResult> GetByActionObjectId(Guid actionObjectId)
+        public async Task<IActionResult> GetByActionObjectId(Guid actionObjectId, [FromQuery] PageRequest pageRequest)
         {
-            var rules = await _ruleService.GetByActionObjectIdAsync(actionObjectId);
+            var rules = await _ruleService.GetByActionObjectIdAsync(actionObjectId, pageRequest);
             return Ok(rules);
         }
 
         [HttpGet("permission/{permissionId}")]
-        public async Task<IActionResult> GetByPermissionId(Guid permissionId)
+        public async Task<IActionResult> GetByPermissionId(Guid permissionId, [FromQuery] PageRequest pageRequest)
         {
-            var rules = await _ruleService.GetByPermissionIdAsync(permissionId);
+            var rules = await _ruleService.GetByPermissionIdAsync(permissionId, pageRequest);
             return Ok(rules);
         }
 
         [HttpGet("action-object/{actionObjectId}/permission/{permissionId}")]
-        public async Task<IActionResult> GetByActionObjectAndPermission(Guid actionObjectId, Guid permissionId)
+        public async Task<IActionResult> GetByActionObjectAndPermission(Guid actionObjectId, Guid permissionId, [FromQuery] PageRequest pageRequest)
         {
-            var rules = await _ruleService.GetByActionObjectAndPermissionAsync(actionObjectId, permissionId);
+            var rules = await _ruleService.GetByActionObjectAndPermissionAsync(actionObjectId, permissionId, pageRequest);
             return Ok(rules);
         }
 

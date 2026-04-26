@@ -1,3 +1,4 @@
+using Application.Common.Pagination;
 using Core.Entities;
 using Application.Interfaces.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -23,9 +24,20 @@ namespace Infrastructure.Persistence.Repositories
             return await _context.Roles.FirstOrDefaultAsync(r => r.Name == name);
         }
 
-        public async Task<List<Role>> GetAllAsync()
+        public async Task<PagedResult<Role>> GetAllAsync(PageRequest pageRequest)
         {
-            return await _context.Roles.ToListAsync();
+            var query = _context.Roles.OrderBy(r => r.Name);
+
+            var totalCount = await query.CountAsync();
+            var items = await query.Skip(pageRequest.Skip).Take(pageRequest.PageSize).ToListAsync();
+
+            return new PagedResult<Role>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = pageRequest.Page,
+                PageSize = pageRequest.PageSize
+            };
         }
 
         public async Task AddAsync(Role role)

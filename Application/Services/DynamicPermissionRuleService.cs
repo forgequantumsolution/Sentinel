@@ -1,3 +1,4 @@
+using Application.Common.Pagination;
 using Core.Entities;
 using Application.DTOs;
 using Application.Interfaces.Persistence;
@@ -21,34 +22,40 @@ namespace Application.Services
             return MapToDto(rule);
         }
 
-        public async Task<List<DynamicGroupObjectPermissionDto>> GetAllAsync()
+        public async Task<PagedResult<DynamicGroupObjectPermissionDto>> GetAllAsync(PageRequest pageRequest)
         {
-            var rules = await _ruleRepository.GetAllAsync();
-            return rules.Select(MapToDto).ToList();
+            return MapPaged(await _ruleRepository.GetAllAsync(pageRequest));
         }
 
-        public async Task<List<DynamicGroupObjectPermissionDto>> GetByUserGroupIdAsync(Guid userGroupId)
+        public async Task<PagedResult<DynamicGroupObjectPermissionDto>> GetByUserGroupIdAsync(Guid userGroupId, PageRequest pageRequest)
         {
-            var rules = await _ruleRepository.GetByUserGroupIdAsync(userGroupId);
-            return rules.Select(MapToDto).ToList();
+            return MapPaged(await _ruleRepository.GetByUserGroupIdAsync(userGroupId, pageRequest));
         }
 
-        public async Task<List<DynamicGroupObjectPermissionDto>> GetByActionObjectIdAsync(Guid actionObjectId)
+        public async Task<PagedResult<DynamicGroupObjectPermissionDto>> GetByActionObjectIdAsync(Guid actionObjectId, PageRequest pageRequest)
         {
-            var rules = await _ruleRepository.GetByActionObjectIdAsync(actionObjectId);
-            return rules.Select(MapToDto).ToList();
+            return MapPaged(await _ruleRepository.GetByActionObjectIdAsync(actionObjectId, pageRequest));
         }
 
-        public async Task<List<DynamicGroupObjectPermissionDto>> GetByPermissionIdAsync(Guid permissionId)
+        public async Task<PagedResult<DynamicGroupObjectPermissionDto>> GetByPermissionIdAsync(Guid permissionId, PageRequest pageRequest)
         {
-            var rules = await _ruleRepository.GetByPermissionIdAsync(permissionId);
-            return rules.Select(MapToDto).ToList();
+            return MapPaged(await _ruleRepository.GetByPermissionIdAsync(permissionId, pageRequest));
         }
 
-        public async Task<List<DynamicGroupObjectPermissionDto>> GetByActionObjectAndPermissionAsync(Guid actionObjectId, Guid permissionId)
+        public async Task<PagedResult<DynamicGroupObjectPermissionDto>> GetByActionObjectAndPermissionAsync(Guid actionObjectId, Guid permissionId, PageRequest pageRequest)
         {
-            var rules = await _ruleRepository.GetByActionObjectAndPermissionAsync(actionObjectId, permissionId);
-            return rules.Select(MapToDto).ToList();
+            return MapPaged(await _ruleRepository.GetByActionObjectAndPermissionAsync(actionObjectId, permissionId, pageRequest));
+        }
+
+        private PagedResult<DynamicGroupObjectPermissionDto> MapPaged(PagedResult<DynamicGroupObjectPermission> paged)
+        {
+            return new PagedResult<DynamicGroupObjectPermissionDto>
+            {
+                Items = paged.Items.Select(MapToDto).ToList(),
+                TotalCount = paged.TotalCount,
+                Page = paged.Page,
+                PageSize = paged.PageSize
+            };
         }
 
         public async Task<DynamicGroupObjectPermissionDto> CreateAsync(CreateDynamicGroupObjectPermissionRequest request)

@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using Application.Common.Pagination;
 using Core.Entities;
 using Application.Interfaces.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -31,12 +32,23 @@ namespace Infrastructure.Persistence.Repositories
                 .FirstOrDefaultAsync(u => u.Email == email);
         }
 
-        public async Task<List<User>> GetAllAsync()
+        public async Task<PagedResult<User>> GetAllAsync(PageRequest pageRequest)
         {
-            return await _context.Users
+            var query = _context.Users
                 .Include(u => u.Role)
                 .Include(u => u.Department)
-                .ToListAsync();
+                .OrderBy(u => u.Name);
+
+            var totalCount = await query.CountAsync();
+            var items = await query.Skip(pageRequest.Skip).Take(pageRequest.PageSize).ToListAsync();
+
+            return new PagedResult<User>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = pageRequest.Page,
+                PageSize = pageRequest.PageSize
+            };
         }
 
         public async Task AddAsync(User user)

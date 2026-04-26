@@ -1,3 +1,4 @@
+using Application.Common.Pagination;
 using Core.Entities;
 
 namespace Application.Interfaces.Services
@@ -6,7 +7,7 @@ namespace Application.Interfaces.Services
     {
         Task<User?> GetUserByIdAsync(Guid userId);
         Task<User?> GetUserByEmailAsync(string email);
-        Task<List<User>> GetAllUsersAsync();
+        Task<PagedResult<User>> GetAllUsersAsync(PageRequest pageRequest);
         Task<User> CreateUserAsync(User user, string password);
         Task UpdateUserAsync(User user);
         Task DeleteUserAsync(Guid userId);

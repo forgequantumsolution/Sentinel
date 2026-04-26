@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Application.Common.Pagination;
 using Core.Entities;
 using Application.Interfaces.Persistence;
 
@@ -22,24 +23,46 @@ namespace Infrastructure.Persistence.Repositories
                 .FirstOrDefaultAsync(r => r.Id == id);
         }
 
-        public async Task<List<DynamicGroupingRule>> GetAllAsync()
+        public async Task<PagedResult<DynamicGroupingRule>> GetAllAsync(PageRequest pageRequest)
         {
-            return await _context.DynamicGroupingRules
+            var query = _context.DynamicGroupingRules
                 .Include(r => r.UserGroup)
                 .Include(r => r.ParentRule)
                 .Include(r => r.ChildRules)
-                .Where(r => r.ParentRuleId == null) // Get root rules by default
-                .ToListAsync();
+                .Where(r => r.ParentRuleId == null) // Root rules only
+                .OrderBy(r => r.CreatedAt);
+
+            var totalCount = await query.CountAsync();
+            var items = await query.Skip(pageRequest.Skip).Take(pageRequest.PageSize).ToListAsync();
+
+            return new PagedResult<DynamicGroupingRule>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = pageRequest.Page,
+                PageSize = pageRequest.PageSize
+            };
         }
 
-        public async Task<List<DynamicGroupingRule>> GetByUserGroupIdAsync(Guid userGroupId)
+        public async Task<PagedResult<DynamicGroupingRule>> GetByUserGroupIdAsync(Guid userGroupId, PageRequest pageRequest)
         {
-            return await _context.DynamicGroupingRules
+            var query = _context.DynamicGroupingRules
                 .Include(r => r.UserGroup)
                 .Include(r => r.ParentRule)
                 .Include(r => r.ChildRules)
                 .Where(r => r.UserGroupId == userGroupId)
-                .ToListAsync();
+                .OrderBy(r => r.CreatedAt);
+
+            var totalCount = await query.CountAsync();
+            var items = await query.Skip(pageRequest.Skip).Take(pageRequest.PageSize).ToListAsync();
+
+            return new PagedResult<DynamicGroupingRule>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = pageRequest.Page,
+                PageSize = pageRequest.PageSize
+            };
         }
 
         public async Task<List<DynamicGroupingRule>> GetRootRulesAsync()

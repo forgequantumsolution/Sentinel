@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Application.Common.Pagination;
 using Application.Interfaces.Persistence;
 using Application.DTOs;
 using Core.Entities;
@@ -17,10 +18,10 @@ namespace Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll([FromQuery] PageRequest pageRequest)
         {
-            var items = await _repository.GetAllAsync();
-            var dtos = items.Select(i => new JobTitleDto
+            var paged = await _repository.GetAllAsync(pageRequest);
+            var dtos = paged.Items.Select(i => new JobTitleDto
             {
                 Id = i.Id,
                 Title = i.Title,
@@ -28,7 +29,14 @@ namespace Controllers
                 DepartmentId = i.DepartmentId,
                 IsActive = i.IsActive
             });
-            return Ok(dtos);
+
+            return Ok(new PagedResult<JobTitleDto>
+            {
+                Items = dtos,
+                TotalCount = paged.TotalCount,
+                Page = paged.Page,
+                PageSize = paged.PageSize
+            });
         }
 
         [HttpGet("{id}")]

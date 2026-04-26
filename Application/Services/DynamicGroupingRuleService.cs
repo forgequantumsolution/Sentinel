@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using Application.Common.Pagination;
 using Core.Entities;
 using Application.DTOs;
 using Application.Interfaces.Persistence;
@@ -27,16 +28,28 @@ namespace Application.Services
             return MapToDto(rule);
         }
 
-        public async Task<List<DynamicGroupingRuleDto>> GetAllAsync()
+        public async Task<PagedResult<DynamicGroupingRuleDto>> GetAllAsync(PageRequest pageRequest)
         {
-            var rules = await _ruleRepository.GetAllAsync();
-            return rules.Select(MapToDto).ToList();
+            var paged = await _ruleRepository.GetAllAsync(pageRequest);
+            return new PagedResult<DynamicGroupingRuleDto>
+            {
+                Items = paged.Items.Select(MapToDto).ToList(),
+                TotalCount = paged.TotalCount,
+                Page = paged.Page,
+                PageSize = paged.PageSize
+            };
         }
 
-        public async Task<List<DynamicGroupingRuleDto>> GetByUserGroupIdAsync(Guid userGroupId)
+        public async Task<PagedResult<DynamicGroupingRuleDto>> GetByUserGroupIdAsync(Guid userGroupId, PageRequest pageRequest)
         {
-            var rules = await _ruleRepository.GetByUserGroupIdAsync(userGroupId);
-            return rules.Select(MapToDto).ToList();
+            var paged = await _ruleRepository.GetByUserGroupIdAsync(userGroupId, pageRequest);
+            return new PagedResult<DynamicGroupingRuleDto>
+            {
+                Items = paged.Items.Select(MapToDto).ToList(),
+                TotalCount = paged.TotalCount,
+                Page = paged.Page,
+                PageSize = paged.PageSize
+            };
         }
 
         public async Task<DynamicGroupingRuleDto> CreateAsync(CreateDynamicGroupingRuleRequest request)

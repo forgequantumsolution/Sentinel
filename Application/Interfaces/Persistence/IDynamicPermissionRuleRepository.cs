@@ -1,3 +1,4 @@
+using Application.Common.Pagination;
 using Core.Entities;
 
 namespace Application.Interfaces.Persistence
@@ -5,11 +6,11 @@ namespace Application.Interfaces.Persistence
     public interface IDynamicGroupObjectPermissionRepository
     {
         Task<DynamicGroupObjectPermission?> GetByIdAsync(Guid id);
-        Task<List<DynamicGroupObjectPermission>> GetAllAsync();
-        Task<List<DynamicGroupObjectPermission>> GetByUserGroupIdAsync(Guid userGroupId);
-        Task<List<DynamicGroupObjectPermission>> GetByActionObjectIdAsync(Guid actionObjectId);
-        Task<List<DynamicGroupObjectPermission>> GetByPermissionIdAsync(Guid permissionId);
-        Task<List<DynamicGroupObjectPermission>> GetByActionObjectAndPermissionAsync(Guid actionObjectId, Guid permissionId);
+        Task<PagedResult<DynamicGroupObjectPermission>> GetAllAsync(PageRequest pageRequest);
+        Task<PagedResult<DynamicGroupObjectPermission>> GetByUserGroupIdAsync(Guid userGroupId, PageRequest pageRequest);
+        Task<PagedResult<DynamicGroupObjectPermission>> GetByActionObjectIdAsync(Guid actionObjectId, PageRequest pageRequest);
+        Task<PagedResult<DynamicGroupObjectPermission>> GetByPermissionIdAsync(Guid permissionId, PageRequest pageRequest);
+        Task<PagedResult<DynamicGroupObjectPermission>> GetByActionObjectAndPermissionAsync(Guid actionObjectId, Guid permissionId, PageRequest pageRequest);
         Task<List<DynamicGroupObjectPermission>> GetRootRulesAsync();
         Task AddAsync(DynamicGroupObjectPermission rule);
         Task UpdateAsync(DynamicGroupObjectPermission rule);

@@ -1,3 +1,4 @@
+using Application.Common.Pagination;
 using Core.Entities;
 
 namespace Application.Interfaces.Persistence
@@ -5,8 +6,8 @@ namespace Application.Interfaces.Persistence
     public interface IDynamicGroupingRuleRepository
     {
         Task<DynamicGroupingRule?> GetByIdAsync(Guid id);
-        Task<List<DynamicGroupingRule>> GetAllAsync();
-        Task<List<DynamicGroupingRule>> GetByUserGroupIdAsync(Guid userGroupId);
+        Task<PagedResult<DynamicGroupingRule>> GetAllAsync(PageRequest pageRequest);
+        Task<PagedResult<DynamicGroupingRule>> GetByUserGroupIdAsync(Guid userGroupId, PageRequest pageRequest);
         Task<List<DynamicGroupingRule>> GetRootRulesAsync();
         Task AddAsync(DynamicGroupingRule rule);
         Task UpdateAsync(DynamicGroupingRule rule);

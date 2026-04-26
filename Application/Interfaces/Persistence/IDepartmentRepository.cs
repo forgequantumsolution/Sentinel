@@ -1,3 +1,4 @@
+using Application.Common.Pagination;
 using Core.Entities;
 
 namespace Application.Interfaces.Persistence
@@ -6,7 +7,7 @@ namespace Application.Interfaces.Persistence
     {
         Task<Department?> GetByIdAsync(Guid id);
         Task<Department?> GetByNameAsync(string name);
-        Task<List<Department>> GetAllAsync();
+        Task<PagedResult<Department>> GetAllAsync(PageRequest pageRequest);
         Task AddAsync(Department department);
         Task UpdateAsync(Department department);
         Task DeleteAsync(Guid id);

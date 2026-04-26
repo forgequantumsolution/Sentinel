@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Application.Common.Pagination;
 using Application.DTOs;
 using Application.Interfaces.Services;
 
@@ -18,9 +19,9 @@ namespace WebAPI.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll([FromQuery] PageRequest pageRequest)
         {
-            var rules = await _ruleService.GetAllAsync();
+            var rules = await _ruleService.GetAllAsync(pageRequest);
             return Ok(rules);
         }
 
@@ -33,9 +34,9 @@ namespace WebAPI.Controllers
         }
 
         [HttpGet("user-group/{userGroupId}")]
-        public async Task<IActionResult> GetByUserGroupId(Guid userGroupId)
+        public async Task<IActionResult> GetByUserGroupId(Guid userGroupId, [FromQuery] PageRequest pageRequest)
         {
-            var rules = await _ruleService.GetByUserGroupIdAsync(userGroupId);
+            var rules = await _ruleService.GetByUserGroupIdAsync(userGroupId, pageRequest);
             return Ok(rules);
         }
 
