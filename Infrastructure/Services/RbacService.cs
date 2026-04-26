@@ -286,13 +286,18 @@ namespace Infrastructure.Services
         {
             // The SQL VIEW (vw_UserGroupMemberships) already resolves the full chain:
             // User → Group → ActionObject + Permission (including admin role override).
+            // Exclude inactive/deleted ActionObjects and Url-type entries (those are API
+            // endpoints, not UI features) — same shape as GetGroupAssignmentsAsync.
             var query = _context.UserGroupMemberships
                 .Include(m => m.UserGroup)
                 .Include(m => m.ActionObject)
                 .Include(m => m.Permission)
                 .Where(m => m.UserId == userId
                          && m.ActionObjectId != null
-                         && m.PermissionId != null);
+                         && m.PermissionId != null
+                         && m.ActionObject!.IsActive
+                         && !m.ActionObject.IsDeleted
+                         && m.ActionObject.ObjectType != ObjectType.Url);
 
             var totalCount = await query.CountAsync();
             var items = await query.Skip(pageRequest.Skip).Take(pageRequest.PageSize).ToListAsync();
