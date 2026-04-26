@@ -26,7 +26,7 @@ namespace Infrastructure.Persistence.Repositories
 
         public async Task<PagedResult<Role>> GetAllAsync(PageRequest pageRequest)
         {
-            var query = _context.Roles.OrderBy(r => r.Name);
+            var query = _context.Roles.OrderBy(r => r.CreatedAt);
 
             var totalCount = await query.CountAsync();
             var items = await query.Skip(pageRequest.Skip).Take(pageRequest.PageSize).ToListAsync();
