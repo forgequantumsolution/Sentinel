@@ -59,14 +59,20 @@ namespace Infrastructure.Persistence
             modelBuilder.Entity<ActionObject>().HasQueryFilter(
                 e => CurrentOrgId == null || e.OrganizationId == null || e.OrganizationId == CurrentOrgId);
 
-            // Override Role & User filters to also exclude shadow super-admin
+            // Override Role & User filters to also exclude shadow super-admin.
+            // sys-admin is restricted to the DEFAULT organization only — child orgs and
+            // requests with no tenant context cannot see the role or its users.
             modelBuilder.Entity<Role>().HasQueryFilter(
                 e => (CurrentOrgId == null || e.OrganizationId == CurrentOrgId || e.Organization!.ParentOrganizationId == CurrentOrgId)
-                  && e.Name != "super-admin");
+                  && e.Name != "super-admin"
+                  && (e.Name != "sys-admin"
+                      || (CurrentOrgId != null && e.OrganizationId == CurrentOrgId && e.Organization!.Code == "DEFAULT")));
 
             modelBuilder.Entity<User>().HasQueryFilter(
                 e => (CurrentOrgId == null || e.OrganizationId == CurrentOrgId || e.Organization!.ParentOrganizationId == CurrentOrgId)
-                  && e.Role!.Name != "super-admin");
+                  && e.Role!.Name != "super-admin"
+                  && (e.Role!.Name != "sys-admin"
+                      || (CurrentOrgId != null && e.OrganizationId == CurrentOrgId && e.Organization!.Code == "DEFAULT")));
         }
 
         private void ApplyTenantQueryFilters(ModelBuilder modelBuilder)
