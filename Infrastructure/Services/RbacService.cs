@@ -282,55 +282,132 @@ namespace Infrastructure.Services
                     a.IsActive && !a.IsDeleted);
         }
 
-        public async Task<PagedResult<UserGroupMembership>> GetUserAssignmentsAsync(Guid userId, Guid? parentObjectId, PageRequest pageRequest)
+        public async Task<PagedResult<ActionObjectWithPermissionsDto>> GetUserAssignmentsAsync(Guid userId, Guid? parentObjectId, PageRequest pageRequest)
         {
-            // The SQL VIEW (vw_UserGroupMemberships) already resolves the full chain:
-            // User → Group → ActionObject + Permission (including admin role override).
-            // Exclude inactive/deleted ActionObjects and Url-type entries (those are API
-            // endpoints, not UI features) — same shape as GetGroupAssignmentsAsync.
+            // Effective permissions for the user from the SQL VIEW (vw_UserGroupMemberships)
+            // — full User → Group → ActionObject + Permission chain, including admin overrides.
             // Filter to ActionObjects under the requested parent (or root if null).
-            var query = _context.UserGroupMemberships
-                .Include(m => m.UserGroup)
-                .Include(m => m.ActionObject)
-                .Include(m => m.Permission)
+            // Same shape as GetGroupAssignmentsAsync.
+            var baseQuery = _context.UserGroupMemberships
                 .Where(m => m.UserId == userId
                          && m.ActionObjectId != null
-                         && m.PermissionId != null
-                         && m.ActionObject!.IsActive
-                         && !m.ActionObject.IsDeleted
-                         && m.ActionObject.ObjectType != ObjectType.Url
-                         && m.ActionObject.ParentObjectId == parentObjectId);
+                         && m.PermissionId != null);
 
-            var totalCount = await query.CountAsync();
-            var items = await query.Skip(pageRequest.Skip).Take(pageRequest.PageSize).ToListAsync();
+            // Step 1: page distinct ActionObjectIds — restricted to the requested parent level.
+            // Exclude Url-type ActionObjects (those are API endpoints, not UI features).
+            var actionObjectsAtLevel = _context.ActionObjects
+                .Where(a => a.ParentObjectId == parentObjectId
+                         && a.IsActive && !a.IsDeleted
+                         && (a.ObjectType != ObjectType.Url))
+                .Select(a => a.Id);
 
-            // Attach first-level children for each ActionObject in the page (single batched query).
-            var parentIds = items
-                .Where(m => m.ActionObject != null)
-                .Select(m => m.ActionObject!.Id)
+            var distinctActionObjects = baseQuery
+                .Select(m => m.ActionObjectId!.Value)
+                .Where(id => actionObjectsAtLevel.Contains(id))
+                .Distinct();
+
+            var totalCount = await distinctActionObjects.CountAsync();
+
+            var pageActionObjectIds = await distinctActionObjects
+                .OrderBy(id => id)
+                .Skip(pageRequest.Skip)
+                .Take(pageRequest.PageSize)
+                .ToListAsync();
+
+            // Step 2: get all (ActionObjectId, PermissionId) pairs for these ActionObjects.
+            var pairs = await baseQuery
+                .Where(m => pageActionObjectIds.Contains(m.ActionObjectId!.Value))
+                .Select(m => new { ActionObjectId = m.ActionObjectId!.Value, PermissionId = m.PermissionId!.Value })
                 .Distinct()
-                .ToList();
+                .ToListAsync();
 
-            if (parentIds.Count > 0)
+            // Step 3: hydrate ActionObject + Permission entities.
+            var permissionIds = pairs.Select(p => p.PermissionId).Distinct().ToList();
+
+            var actionObjects = await _context.ActionObjects
+                .Where(a => pageActionObjectIds.Contains(a.Id))
+                .ToDictionaryAsync(a => a.Id);
+
+            var permissions = await _context.AppPermissions
+                .Where(p => permissionIds.Contains(p.Id))
+                .ToDictionaryAsync(p => p.Id);
+
+            // Step 4: load first-level children for each parent ActionObject (single batched query).
+            var childrenByParent = new Dictionary<Guid, List<ActionObject>>();
+            if (pageActionObjectIds.Count > 0)
             {
                 var children = await _context.ActionObjects
                     .Where(c => c.ParentObjectId != null
-                             && parentIds.Contains(c.ParentObjectId.Value)
+                             && pageActionObjectIds.Contains(c.ParentObjectId.Value)
                              && c.IsActive && !c.IsDeleted
                              && c.ObjectType != ObjectType.Url)
                     .ToListAsync();
 
-                var childrenByParent = children.GroupBy(c => c.ParentObjectId!.Value)
-                    .ToDictionary(g => g.Key, g => (ICollection<ActionObject>)g.ToList());
-
-                foreach (var m in items)
-                {
-                    if (m.ActionObject != null && childrenByParent.TryGetValue(m.ActionObject.Id, out var kids))
-                        m.ActionObject.ChildObjects = kids;
-                }
+                childrenByParent = children
+                    .GroupBy(c => c.ParentObjectId!.Value)
+                    .ToDictionary(g => g.Key, g => g.ToList());
             }
 
-            return new PagedResult<UserGroupMembership>
+            // Step 5: assemble DTOs preserving page order.
+            var items = pageActionObjectIds.Select(aoId =>
+            {
+                var ao = actionObjects.GetValueOrDefault(aoId);
+                var aoPermissionIds = pairs
+                    .Where(p => p.ActionObjectId == aoId)
+                    .Select(p => p.PermissionId);
+
+                return new ActionObjectWithPermissionsDto
+                {
+                    ActionObjectId = aoId,
+                    ActionObject = ao == null ? null : new ActionObjectDto
+                    {
+                        Id = ao.Id,
+                        Name = ao.Name,
+                        Code = ao.Code,
+                        Description = ao.Description,
+                        ObjectType = ao.ObjectType.ToString(),
+                        Route = ao.Route,
+                        Icon = ao.Icon,
+                        SortOrder = ao.SortOrder,
+                        ParentObjectId = ao.ParentObjectId,
+                        IsActive = ao.IsActive,
+                        CreatedAt = ao.CreatedAt,
+                        ChildObjects = childrenByParent.TryGetValue(aoId, out var kids)
+                            ? kids.Select(c => new ActionObjectDto
+                            {
+                                Id = c.Id,
+                                Name = c.Name,
+                                Code = c.Code,
+                                Description = c.Description,
+                                ObjectType = c.ObjectType.ToString(),
+                                Route = c.Route,
+                                Icon = c.Icon,
+                                SortOrder = c.SortOrder,
+                                ParentObjectId = c.ParentObjectId,
+                                IsActive = c.IsActive,
+                                CreatedAt = c.CreatedAt
+                            }).ToList()
+                            : null
+                    },
+                    Permissions = aoPermissionIds
+                        .Where(pid => permissions.ContainsKey(pid))
+                        .Select(pid =>
+                        {
+                            var perm = permissions[pid];
+                            return new AppPermissionDto
+                            {
+                                Id = perm.Id,
+                                Name = perm.Name,
+                                Code = perm.Code,
+                                Description = perm.Description,
+                                IsActive = perm.IsActive
+                            };
+                        })
+                        .ToList()
+                };
+            }).ToList();
+
+            return new PagedResult<ActionObjectWithPermissionsDto>
             {
                 Items = items,
                 TotalCount = totalCount,

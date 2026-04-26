@@ -91,45 +91,9 @@ namespace Controllers
                     return NotFound("User not found");
                 }
 
-                // Get user's action object permission assignments
+                // Get user's action object permission assignments — already grouped per ActionObject.
                 var pagedAssignments = await _rbacService.GetUserAssignmentsAsync(userId, parentObjectId: null, new Application.Common.Pagination.PageRequest { Page = 1, PageSize = 100 });
-
-                // Map to DTOs — group permissions per ActionObject
-                var permissions = pagedAssignments.Items
-                    .Where(a => a.ActionObject != null && a.Permission != null)
-                    .GroupBy(a => a.ActionObject!.Id)
-                    .Select(g =>
-                    {
-                        var ao = g.First().ActionObject!;
-                        return new ActionObjectWithPermissionsDto
-                        {
-                            ActionObjectId = ao.Id,
-                            ActionObject = new ActionObjectDto
-                            {
-                                Id = ao.Id,
-                                Name = ao.Name,
-                                Code = ao.Code,
-                                Description = ao.Description,
-                                ObjectType = ao.ObjectType.ToString(),
-                                Route = ao.Route,
-                                ParentObjectId = ao.ParentObjectId,
-                                IsActive = ao.IsActive,
-                                CreatedAt = ao.CreatedAt
-                            },
-                            Permissions = g.Select(a => a.Permission!)
-                                .DistinctBy(p => p.Id)
-                                .Select(p => new AppPermissionDto
-                                {
-                                    Id = p.Id,
-                                    Name = p.Name,
-                                    Code = p.Code,
-                                    Description = p.Description,
-                                    IsActive = p.IsActive
-                                })
-                                .ToList()
-                        };
-                    })
-                    .ToList();
+                var permissions = pagedAssignments.Items.ToList();
 
                 return Ok(new
                 {

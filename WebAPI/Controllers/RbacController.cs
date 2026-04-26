@@ -37,23 +37,7 @@ namespace Controllers
                 UserId = user.Id,
                 UserName = user.Name,
                 Email = user.Email,
-                Permissions = pagedAssignments.Items
-                    .Where(a => a.ActionObject != null && a.Permission != null)
-                    .Select(a => new ActionObjectPermissionDto
-                    {
-                        ActionObjectId = a.ActionObject!.Id,
-                        ActionObject = MapActionObject(a.ActionObject),
-                        PermissionId = a.Permission!.Id,
-                        Permission = new AppPermissionDto
-                        {
-                            Id = a.Permission.Id,
-                            Name = a.Permission.Name,
-                            Code = a.Permission.Code,
-                            Description = a.Permission.Description,
-                            IsActive = a.Permission.IsActive
-                        }
-                    })
-                    .ToList()
+                Permissions = pagedAssignments.Items.ToList()
             };
 
             return Ok(result);

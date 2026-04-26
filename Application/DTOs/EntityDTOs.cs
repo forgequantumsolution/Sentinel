@@ -104,7 +104,7 @@ namespace Application.DTOs
         public Guid UserId { get; set; }
         public string UserName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
-        public List<ActionObjectPermissionDto> Permissions { get; set; } = new();
+        public List<ActionObjectWithPermissionsDto> Permissions { get; set; } = new();
     }
 
     // ── Graph DTOs ──
