@@ -139,7 +139,7 @@ namespace Infrastructure.Services
 
                 EnsureNotAdminRoleGroup(group);
 
-                await EnsureOrgHasPermissionAsync(actionObjectId, permissionId, group.OrganizationId.Value, "group");
+                //await EnsureOrgHasPermissionAsync(actionObjectId, permissionId, group.OrganizationId.Value, "group");
             }
 
             // Check for existing assignment — include soft-deleted to reuse the row
