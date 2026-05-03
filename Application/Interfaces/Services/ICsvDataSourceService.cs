@@ -12,9 +12,15 @@ namespace Application.Interfaces.Services
     public interface ICsvDataSourceService
     {
         /// <summary>
-        /// Reads a CSV file and returns tabular results compatible with the graph pipeline.
+        /// Reads a CSV/Excel file and returns tabular results compatible with the graph pipeline.
+        /// Optionally applies an in-memory FilterGroup, SortRules, and row limit — mirrors the
+        /// DynamicForm/SQL flow so all source types accept the same GraphExecuteRequest shape.
         /// </summary>
-        Task<FormQueryResult> ExecuteAsync(CsvSourceConfig config);
+        Task<FormQueryResult> ExecuteAsync(
+            CsvSourceConfig config,
+            FilterGroup? filter = null,
+            List<SortRule>? sortRules = null,
+            int? rowLimit = null);
 
         /// <summary>
         /// Uploads a CSV file, parses its column headers, persists file metadata,

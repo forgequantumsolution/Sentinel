@@ -302,7 +302,11 @@ namespace Application.Services
             }
             else if (dataDef.Source.Type == DataSourceType.CsvFile && dataDef.Source.Csv != null)
             {
-                queryResult = await _csvService.ExecuteAsync(dataDef.Source.Csv);
+                queryResult = await _csvService.ExecuteAsync(
+                    dataDef.Source.Csv,
+                    effectiveFilter,
+                    effectiveSortRules,
+                    effectiveRowLimit);
             }
 
             if (queryResult != null)

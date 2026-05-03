@@ -1,9 +1,11 @@
+using System.Globalization;
 using System.Text.Json;
 using Application.FormQuery;
 using Application.Interfaces.Persistence;
 using Application.Interfaces.Services;
 using Application.Models;
 using Core.Entities;
+using Core.Enums;
 using Core.Models;
 using Microsoft.Extensions.Options;
 using OfficeOpenXml;
@@ -29,7 +31,11 @@ namespace Infrastructure.Services
             _storageSettings = storageSettings.Value;
         }
 
-        public async Task<FormQueryResult> ExecuteAsync(CsvSourceConfig config)
+        public async Task<FormQueryResult> ExecuteAsync(
+            CsvSourceConfig config,
+            FilterGroup? filter = null,
+            List<SortRule>? sortRules = null,
+            int? rowLimit = null)
         {
             if (string.IsNullOrWhiteSpace(config.FilePath))
                 throw new ArgumentException("File ID is required.");
@@ -43,9 +49,162 @@ namespace Infrastructure.Services
             var storage = ResolveStorageProvider(uploadedFile);
 
             var ext = Path.GetExtension(uploadedFile.FileName)?.ToLowerInvariant();
-            return ext is ".xlsx" or ".xls"
+            var result = ext is ".xlsx" or ".xls"
                 ? await ExecuteExcelAsync(storage, uploadedFile.FilePath, config)
                 : await ExecuteCsvAsync(storage, uploadedFile.FilePath, config);
+
+            return ApplyRuntimeOps(result, filter, sortRules, rowLimit);
+        }
+
+        /// <summary>
+        /// In-memory filter / sort / limit pass over the loaded rows. Mirrors the WHERE/ORDER/LIMIT
+        /// the DynamicForm path applies in SQL, so CSV consumers see the same GraphExecuteRequest semantics.
+        /// </summary>
+        private static FormQueryResult ApplyRuntimeOps(
+            FormQueryResult result,
+            FilterGroup? filter,
+            List<SortRule>? sortRules,
+            int? rowLimit)
+        {
+            IEnumerable<Dictionary<string, object?>> rows = result.Rows;
+
+            if (filter != null)
+                rows = rows.Where(r => EvaluateFilter(r, filter));
+
+            if (sortRules != null && sortRules.Count > 0)
+            {
+                IOrderedEnumerable<Dictionary<string, object?>>? ordered = null;
+                foreach (var rule in sortRules)
+                {
+                    var field = rule.Field;
+                    var desc = rule.Direction == SortDirection.Desc;
+                    ordered = ordered == null
+                        ? (desc
+                            ? rows.OrderByDescending(r => GetCell(r, field), RowValueComparer.Instance)
+                            : rows.OrderBy(r => GetCell(r, field), RowValueComparer.Instance))
+                        : (desc
+                            ? ordered.ThenByDescending(r => GetCell(r, field), RowValueComparer.Instance)
+                            : ordered.ThenBy(r => GetCell(r, field), RowValueComparer.Instance));
+                }
+                if (ordered != null) rows = ordered;
+            }
+
+            if (rowLimit.HasValue && rowLimit.Value > 0)
+                rows = rows.Take(rowLimit.Value);
+
+            var materialized = rows.ToList();
+            return new FormQueryResult
+            {
+                Rows = materialized,
+                TotalCount = materialized.Count
+            };
+        }
+
+        private static bool EvaluateFilter(Dictionary<string, object?> row, FilterGroup group)
+        {
+            var results = new List<bool>();
+            foreach (var rule in group.Rules)
+                results.Add(EvaluateRule(row, rule));
+            if (group.SubGroups != null)
+                foreach (var sub in group.SubGroups)
+                    results.Add(EvaluateFilter(row, sub));
+
+            if (results.Count == 0) return true;
+            return group.Join == JoinOperator.Or ? results.Any(r => r) : results.All(r => r);
+        }
+
+        private static bool EvaluateRule(Dictionary<string, object?> row, FilterRule rule)
+        {
+            var fieldValue = GetCell(row, rule.Field);
+
+            switch (rule.Operator)
+            {
+                case FilterOperator.IsNull: return fieldValue == null;
+                case FilterOperator.IsNotNull: return fieldValue != null;
+            }
+
+            return rule.Operator switch
+            {
+                FilterOperator.Eq => CompareValues(fieldValue, rule.Value) == 0,
+                FilterOperator.NotEq => CompareValues(fieldValue, rule.Value) != 0,
+                FilterOperator.Gt => CompareValues(fieldValue, rule.Value) > 0,
+                FilterOperator.Gte => CompareValues(fieldValue, rule.Value) >= 0,
+                FilterOperator.Lt => CompareValues(fieldValue, rule.Value) < 0,
+                FilterOperator.Lte => CompareValues(fieldValue, rule.Value) <= 0,
+                FilterOperator.Like => MatchesLike(fieldValue, rule.Value),
+                FilterOperator.In => rule.Values?.Any(v => CompareValues(fieldValue, v) == 0) == true,
+                FilterOperator.NotIn => rule.Values == null || rule.Values.All(v => CompareValues(fieldValue, v) != 0),
+                _ => false
+            };
+        }
+
+        private static object? GetCell(Dictionary<string, object?> row, string field)
+        {
+            return row.TryGetValue(field, out var v) ? v : null;
+        }
+
+        private static bool MatchesLike(object? fieldValue, object? pattern)
+        {
+            if (fieldValue == null || pattern is not string p) return false;
+            // Translate SQL LIKE to substring/prefix/suffix containment.
+            var s = fieldValue.ToString() ?? string.Empty;
+            var startsWild = p.StartsWith('%');
+            var endsWild = p.EndsWith('%');
+            var core = p.Trim('%');
+            return (startsWild, endsWild) switch
+            {
+                (true, true) => s.Contains(core, StringComparison.OrdinalIgnoreCase),
+                (true, false) => s.EndsWith(core, StringComparison.OrdinalIgnoreCase),
+                (false, true) => s.StartsWith(core, StringComparison.OrdinalIgnoreCase),
+                _ => string.Equals(s, core, StringComparison.OrdinalIgnoreCase)
+            };
+        }
+
+        private static int CompareValues(object? a, object? b)
+        {
+            if (a == null && b == null) return 0;
+            if (a == null) return -1;
+            if (b == null) return 1;
+
+            if (TryToDateTime(a, out var ad) && TryToDateTime(b, out var bd))
+                return ad.CompareTo(bd);
+
+            if (TryToDecimal(a, out var an) && TryToDecimal(b, out var bn))
+                return an.CompareTo(bn);
+
+            return string.Compare(a.ToString(), b.ToString(), StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool TryToDecimal(object value, out decimal result)
+        {
+            switch (value)
+            {
+                case decimal d: result = d; return true;
+                case long l: result = l; return true;
+                case int i: result = i; return true;
+                case double db: result = (decimal)db; return true;
+                case string s when decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var sd):
+                    result = sd; return true;
+                default: result = 0; return false;
+            }
+        }
+
+        private static bool TryToDateTime(object value, out DateTime result)
+        {
+            switch (value)
+            {
+                case DateTime dt: result = dt; return true;
+                case DateTimeOffset dto: result = dto.UtcDateTime; return true;
+                case string s when DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out var sd):
+                    result = sd; return true;
+                default: result = default; return false;
+            }
+        }
+
+        private sealed class RowValueComparer : IComparer<object?>
+        {
+            public static readonly RowValueComparer Instance = new();
+            public int Compare(object? x, object? y) => CompareValues(x, y);
         }
 
         private async Task<FormQueryResult> ExecuteCsvAsync(IFileStorageService storage, string storedPath, CsvSourceConfig config)
