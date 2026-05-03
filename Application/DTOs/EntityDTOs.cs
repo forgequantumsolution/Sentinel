@@ -290,7 +290,7 @@ namespace Application.DTOs
 
     public class UserGroupMembershipDto
     {
-        public Guid UserId { get; set; }
+        public Guid? UserId { get; set; }
         public Guid UserGroupId { get; set; }
         public string? UserName { get; set; }
         public string? UserEmail { get; set; }

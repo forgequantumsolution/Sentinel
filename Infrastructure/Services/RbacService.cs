@@ -316,7 +316,7 @@ namespace Infrastructure.Services
 
             // Step 2: get all (ActionObjectId, PermissionId) pairs for these ActionObjects.
             var pairs = await baseQuery
-                .Where(m => pageActionObjectIds.Contains(m.ActionObjectId!.Value))
+                //.Where(m => pageActionObjectIds.Contains(m.ActionObjectId!.Value))
                 .Select(m => new { ActionObjectId = m.ActionObjectId!.Value, PermissionId = m.PermissionId!.Value })
                 .Distinct()
                 .ToListAsync();
@@ -332,12 +332,14 @@ namespace Infrastructure.Services
                 .Where(p => permissionIds.Contains(p.Id))
                 .ToDictionaryAsync(p => p.Id);
 
-            // Step 4: load first-level children for each parent ActionObject (single batched query).
+            // Step 4: load first-level children (assigned to this user) and their permissions.
             var childrenByParent = new Dictionary<Guid, List<ActionObject>>();
+            var childPairs = new List<(Guid ActionObjectId, Guid PermissionId)>();
             if (pageActionObjectIds.Count > 0)
             {
                 var children = await _context.ActionObjects
                     .Where(c => c.ParentObjectId != null
+                             && baseQuery.Select(x => x.ActionObjectId).Distinct().Contains(c.Id)
                              && pageActionObjectIds.Contains(c.ParentObjectId.Value)
                              && c.IsActive && !c.IsDeleted
                              && c.ObjectType != ObjectType.Url)
@@ -346,6 +348,32 @@ namespace Infrastructure.Services
                 childrenByParent = children
                     .GroupBy(c => c.ParentObjectId!.Value)
                     .ToDictionary(g => g.Key, g => g.ToList());
+
+                var childIds = children.Select(c => c.Id).ToList();
+                if (childIds.Count > 0)
+                {
+                    childPairs = (await baseQuery
+                        .Where(m => childIds.Contains(m.ActionObjectId!.Value))
+                        .Select(m => new { ActionObjectId = m.ActionObjectId!.Value, PermissionId = m.PermissionId!.Value })
+                        .Distinct()
+                        .ToListAsync())
+                        .Select(p => (p.ActionObjectId, p.PermissionId))
+                        .ToList();
+
+                    // Hydrate any permissions referenced only by children (not in parent set).
+                    var missingPermIds = childPairs.Select(p => p.PermissionId)
+                        .Distinct()
+                        .Where(id => !permissions.ContainsKey(id))
+                        .ToList();
+                    if (missingPermIds.Count > 0)
+                    {
+                        var morePerms = await _context.AppPermissions
+                            .Where(p => missingPermIds.Contains(p.Id))
+                            .ToListAsync();
+                        foreach (var p in morePerms)
+                            permissions[p.Id] = p;
+                    }
+                }
             }
 
             // Step 5: assemble DTOs preserving page order.
@@ -373,19 +401,38 @@ namespace Infrastructure.Services
                         IsActive = ao.IsActive,
                         CreatedAt = ao.CreatedAt,
                         ChildObjects = childrenByParent.TryGetValue(aoId, out var kids)
-                            ? kids.Select(c => new ActionObjectDto
+                            ? kids.Select(c => new ActionObjectWithPermissionsDto
                             {
-                                Id = c.Id,
-                                Name = c.Name,
-                                Code = c.Code,
-                                Description = c.Description,
-                                ObjectType = c.ObjectType.ToString(),
-                                Route = c.Route,
-                                Icon = c.Icon,
-                                SortOrder = c.SortOrder,
-                                ParentObjectId = c.ParentObjectId,
-                                IsActive = c.IsActive,
-                                CreatedAt = c.CreatedAt
+                                ActionObjectId = c.Id,
+                                ActionObject = new ActionObjectDto
+                                {
+                                    Id = c.Id,
+                                    Name = c.Name,
+                                    Code = c.Code,
+                                    Description = c.Description,
+                                    ObjectType = c.ObjectType.ToString(),
+                                    Route = c.Route,
+                                    Icon = c.Icon,
+                                    SortOrder = c.SortOrder,
+                                    ParentObjectId = c.ParentObjectId,
+                                    IsActive = c.IsActive,
+                                    CreatedAt = c.CreatedAt
+                                },
+                                Permissions = childPairs
+                                    .Where(p => p.ActionObjectId == c.Id && permissions.ContainsKey(p.PermissionId))
+                                    .Select(p =>
+                                    {
+                                        var perm = permissions[p.PermissionId];
+                                        return new AppPermissionDto
+                                        {
+                                            Id = perm.Id,
+                                            Name = perm.Name,
+                                            Code = perm.Code,
+                                            Description = perm.Description,
+                                            IsActive = perm.IsActive
+                                        };
+                                    })
+                                    .ToList()
                             }).ToList()
                             : null
                     },

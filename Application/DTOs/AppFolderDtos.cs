@@ -76,6 +76,6 @@ namespace Application.DTOs
         /// </summary>
         public bool HasChildren { get; set; }
         public object? Data { get; set; }
-        public List<ActionObjectDto>? ChildObjects { get; set; }
+        public List<ActionObjectWithPermissionsDto>? ChildObjects { get; set; }
     }
 }

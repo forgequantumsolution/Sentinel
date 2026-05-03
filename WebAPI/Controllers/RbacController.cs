@@ -75,7 +75,15 @@ namespace Controllers
                 ParentObjectId = a.ParentObjectId,
                 IsActive = a.IsActive,
                 CreatedAt = a.CreatedAt,
-                ChildObjects = a.ChildObjects?.Where(c => c.IsActive && !c.IsDeleted).Select(MapActionObject).ToList(),
+                ChildObjects = a.ChildObjects?
+                    .Where(c => c.IsActive && !c.IsDeleted)
+                    .Select(c => new ActionObjectWithPermissionsDto
+                    {
+                        ActionObjectId = c.Id,
+                        ActionObject = MapActionObject(c),
+                        Permissions = new List<AppPermissionDto>()
+                    })
+                    .ToList(),
                 HasChildren = a.HasChildren
             };
         }

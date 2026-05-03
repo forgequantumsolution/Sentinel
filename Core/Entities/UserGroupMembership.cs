@@ -8,7 +8,12 @@ namespace Core.Entities
     /// </summary>
     public class UserGroupMembership
     {
-        public Guid UserId { get; set; }
+        /// <summary>
+        /// Null when the row represents a group's permission that has no matching user yet
+        /// (e.g. a fresh group with assignments but empty membership). Set when a real user
+        /// is mapped to the group via a grouping rule.
+        /// </summary>
+        public Guid? UserId { get; set; }
         public Guid UserGroupId { get; set; }
         public Guid? RuleId { get; set; }
         public Guid? ActionObjectId { get; set; }
