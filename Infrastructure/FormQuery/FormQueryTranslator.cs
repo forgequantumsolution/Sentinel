@@ -74,6 +74,10 @@ namespace Infrastructure.FormQuery
 
                 cteSb.Append($"\"{formAlias}\" AS (\n  SELECT v.\"SubmissionId\"");
 
+                // Submission timestamp exposed as "_date" so outer queries can filter/sort by it
+                // even if the form schema has no native date field.
+                cteSb.Append(",\n    MAX(s.\"CreatedAt\") AS \"_date\"");
+
                 foreach (var field in fields)
                 {
                     var paramName = AddParameter(field.FieldDefinitionId);

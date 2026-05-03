@@ -110,9 +110,15 @@ namespace Infrastructure.FormQuery
                 if (ch == '<') { tokens.Add(MakeToken(TokenType.Lt, "<")); continue; }
                 if (ch == '>') { tokens.Add(MakeToken(TokenType.Gt, ">")); continue; }
 
-                // Numbers
+                // Numbers — also catches bare ISO date / datetime literals (YYYY-MM-DD[ HH:MM[:SS[.fff]]])
+                // and emits them as StringLiteral so the translator can ::DATE-cast them like quoted dates.
                 if (char.IsDigit(ch))
                 {
+                    if (TryReadIsoDateLiteral() is { } dateToken)
+                    {
+                        tokens.Add(dateToken);
+                        continue;
+                    }
                     tokens.Add(ReadNumber());
                     continue;
                 }
@@ -234,6 +240,59 @@ namespace Infrastructure.FormQuery
             while (_pos < _input.Length && (char.IsDigit(_input[_pos]) || _input[_pos] == '.'))
                 _pos++;
             return new Token { Type = TokenType.Number, Value = _input[start.._pos], Position = start };
+        }
+
+        /// <summary>
+        /// Tries to read an unquoted ISO-style date or datetime literal starting at the current position:
+        ///   YYYY-MM-DD
+        ///   YYYY-MM-DD HH:MM
+        ///   YYYY-MM-DDTHH:MM
+        ///   YYYY-MM-DD HH:MM:SS[.fff]
+        /// Emits a StringLiteral token so the translator's date-string handling auto-casts it to ::DATE.
+        /// Returns null (without consuming any input) if the pattern doesn't match.
+        /// </summary>
+        private Token? TryReadIsoDateLiteral()
+        {
+            // YYYY-MM-DD requires at least 10 chars
+            if (_pos + 10 > _input.Length) return null;
+
+            for (var i = 0; i < 4; i++) if (!char.IsDigit(_input[_pos + i])) return null;
+            if (_input[_pos + 4] != '-') return null;
+            if (!char.IsDigit(_input[_pos + 5]) || !char.IsDigit(_input[_pos + 6])) return null;
+            if (_input[_pos + 7] != '-') return null;
+            if (!char.IsDigit(_input[_pos + 8]) || !char.IsDigit(_input[_pos + 9])) return null;
+
+            var start = _pos;
+            var end = _pos + 10;
+
+            // Optional time portion: separator (T or space) + HH:MM[:SS[.fff]]
+            if (end + 6 <= _input.Length
+                && (_input[end] == 'T' || _input[end] == ' ')
+                && char.IsDigit(_input[end + 1]) && char.IsDigit(_input[end + 2])
+                && _input[end + 3] == ':'
+                && char.IsDigit(_input[end + 4]) && char.IsDigit(_input[end + 5]))
+            {
+                end += 6; // consumed " HH:MM"
+
+                // Optional :SS
+                if (end + 3 <= _input.Length
+                    && _input[end] == ':'
+                    && char.IsDigit(_input[end + 1]) && char.IsDigit(_input[end + 2]))
+                {
+                    end += 3;
+
+                    // Optional fractional seconds .fff
+                    if (end < _input.Length && _input[end] == '.')
+                    {
+                        var fracEnd = end + 1;
+                        while (fracEnd < _input.Length && char.IsDigit(_input[fracEnd])) fracEnd++;
+                        if (fracEnd > end + 1) end = fracEnd;
+                    }
+                }
+            }
+
+            _pos = end;
+            return new Token { Type = TokenType.StringLiteral, Value = _input[start..end], Position = start };
         }
 
         private Token ReadIdentifierOrKeyword()
