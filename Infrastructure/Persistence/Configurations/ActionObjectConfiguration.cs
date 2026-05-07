@@ -20,5 +20,10 @@ public class ActionObjectConfiguration : IEntityTypeConfiguration<ActionObject>
               .WithMany()
               .HasForeignKey(ao => ao.OrganizationId)
               .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(ao => ao.Department)
+              .WithMany()
+              .HasForeignKey(ao => ao.DepartmentId)
+              .OnDelete(DeleteBehavior.Restrict);
     }
 }

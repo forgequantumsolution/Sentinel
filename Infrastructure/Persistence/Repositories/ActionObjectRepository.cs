@@ -20,6 +20,7 @@ namespace Infrastructure.Persistence.Repositories
             return await _context.ActionObjects
                 .Include(ao => ao.ParentObject)
                 .Include(ao => ao.ChildObjects)
+                .Include(ao => ao.Department)
                 .FirstOrDefaultAsync(ao => ao.Id == id && !ao.IsDeleted);
         }
 
@@ -28,6 +29,7 @@ namespace Infrastructure.Persistence.Repositories
             return await _context.ActionObjects
                 .Include(ao => ao.ParentObject)
                 .Include(ao => ao.ChildObjects)
+                .Include(ao => ao.Department)
                 .Where(ao => !ao.IsDeleted)
                 .OrderBy(ao => ao.SortOrder)
                 .ToListAsync();
@@ -38,6 +40,7 @@ namespace Infrastructure.Persistence.Repositories
             var query = _context.ActionObjects
                 .Include(ao => ao.ParentObject)
                 .Include(ao => ao.ChildObjects)
+                .Include(ao => ao.Department)
                 .Where(ao => ao.ObjectType == objectType && !ao.IsDeleted)
                 .OrderBy(ao => ao.SortOrder);
 
@@ -78,6 +81,7 @@ namespace Infrastructure.Persistence.Repositories
         {
             var query = _context.ActionObjects
                 .Include(ao => ao.ParentObject)
+                .Include(ao => ao.Department)
                 .Where(ao => ao.ParentObjectId == parentObjectId && !ao.IsDeleted)
                 .OrderBy(ao => ao.SortOrder);
 

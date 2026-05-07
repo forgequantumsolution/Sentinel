@@ -15,15 +15,31 @@ namespace Application.Services
         private readonly IActionObjectRepository _repository;
         private readonly IGraphConfigRepository _graphConfigRepository;
         private readonly IGraphService _graphService;
+        private readonly IDepartmentRepository _departmentRepository;
 
         public AppFolderService(
             IActionObjectRepository repository,
             IGraphConfigRepository graphConfigRepository,
-            IGraphService graphService)
+            IGraphService graphService,
+            IDepartmentRepository departmentRepository)
         {
             _repository = repository;
             _graphConfigRepository = graphConfigRepository;
             _graphService = graphService;
+            _departmentRepository = departmentRepository;
+        }
+
+        /// <summary>
+        /// Verifies the given department exists and is visible to the current tenant.
+        /// Department is a TenantEntity with global query filters, so a null result here
+        /// means either the department doesn't exist or belongs to a different tenant.
+        /// </summary>
+        private async Task ValidateDepartmentAsync(Guid? departmentId)
+        {
+            if (departmentId == null) return;
+            var dept = await _departmentRepository.GetByIdAsync(departmentId.Value);
+            if (dept == null)
+                throw new ArgumentException($"Department '{departmentId}' not found.");
         }
 
         public async Task<AppFolderDto?> GetByIdAsync(Guid id)
@@ -58,6 +74,8 @@ namespace Application.Services
 
         public async Task<AppFolderDto> CreateAsync(CreateAppFolderDto dto, Guid? userId)
         {
+            await ValidateDepartmentAsync(dto.DepartmentId);
+
             string route;
             if (!string.IsNullOrWhiteSpace(dto.Route))
             {
@@ -80,6 +98,7 @@ namespace Application.Services
                 Icon = dto.Icon,
                 SortOrder = dto.SortOrder,
                 ParentObjectId = dto.ParentObjectId,
+                DepartmentId = dto.DepartmentId,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -91,6 +110,8 @@ namespace Application.Services
         {
             var folder = await _repository.GetByIdAsync(id);
             if (folder == null || folder.ObjectType != ObjectType.Folder) return null;
+
+            await ValidateDepartmentAsync(dto.DepartmentId);
 
             if (!string.IsNullOrWhiteSpace(dto.Route))
             {
@@ -105,6 +126,7 @@ namespace Application.Services
             folder.Description = dto.Description;
             folder.Icon = dto.Icon;
             folder.SortOrder = dto.SortOrder;
+            folder.DepartmentId = dto.DepartmentId;
             folder.UpdatedAt = DateTime.UtcNow;
 
             await _repository.UpdateAsync(folder);
@@ -157,6 +179,8 @@ namespace Application.Services
             if (folder == null || folder.ObjectType != ObjectType.Folder)
                 throw new ArgumentException("Folder not found.");
 
+            await ValidateDepartmentAsync(dto.DepartmentId);
+
             string? route = null;
             if (!string.IsNullOrWhiteSpace(dto.Route))
             {
@@ -179,6 +203,7 @@ namespace Application.Services
                 Icon = dto.Icon,
                 SortOrder = dto.SortOrder,
                 ParentObjectId = folderId,
+                DepartmentId = dto.DepartmentId,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -342,6 +367,8 @@ namespace Application.Services
                 SortOrder = obj.SortOrder,
                 ParentObjectId = obj.ParentObjectId,
                 ParentName = obj.ParentObject?.Name,
+                DepartmentId = obj.DepartmentId,
+                DepartmentName = obj.Department?.Name,
                 IsActive = obj.IsActive,
                 CreatedAt = obj.CreatedAt
             };
@@ -369,6 +396,8 @@ namespace Application.Services
                 SortOrder = obj.SortOrder,
                 ParentObjectId = obj.ParentObjectId,
                 ParentName = obj.ParentObject?.Name,
+                DepartmentId = obj.DepartmentId,
+                DepartmentName = obj.Department?.Name,
                 IsActive = obj.IsActive,
                 CreatedAt = obj.CreatedAt
             };

@@ -73,6 +73,8 @@ namespace Controllers
                 Icon = a.Icon,
                 SortOrder = a.SortOrder,
                 ParentObjectId = a.ParentObjectId,
+                DepartmentId = a.DepartmentId,
+                DepartmentName = a.Department?.Name,
                 IsActive = a.IsActive,
                 CreatedAt = a.CreatedAt,
                 ChildObjects = a.ChildObjects?

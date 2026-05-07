@@ -44,6 +44,16 @@ namespace Core.Entities
         [ForeignKey("OrganizationId")]
         public virtual Organization? Organization { get; set; }
 
+        // ── Department ──
+
+        /// <summary>
+        /// Optional department this object belongs to. NULL = no department.
+        /// </summary>
+        public Guid? DepartmentId { get; set; }
+
+        [ForeignKey("DepartmentId")]
+        public virtual Department? Department { get; set; }
+
         // ── Hierarchy ──
 
         public Guid? ParentObjectId { get; set; }

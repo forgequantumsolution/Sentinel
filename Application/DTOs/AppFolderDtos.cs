@@ -13,6 +13,8 @@ namespace Application.DTOs
         public int SortOrder { get; set; }
         public Guid? ParentObjectId { get; set; }
         public string? ParentName { get; set; }
+        public Guid? DepartmentId { get; set; }
+        public string? DepartmentName { get; set; }
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public List<AppFolderDto> Children { get; set; } = new();
@@ -27,6 +29,7 @@ namespace Application.DTOs
         public string? Icon { get; set; }
         public int SortOrder { get; set; } = 0;
         public Guid? ParentObjectId { get; set; }
+        public Guid? DepartmentId { get; set; }
     }
 
     public class UpdateAppFolderDto
@@ -37,6 +40,7 @@ namespace Application.DTOs
         public string? Description { get; set; }
         public string? Icon { get; set; }
         public int SortOrder { get; set; }
+        public Guid? DepartmentId { get; set; }
     }
 
     public class MoveToFolderDto
@@ -53,6 +57,7 @@ namespace Application.DTOs
         public string? Route { get; set; }
         public string? Icon { get; set; }
         public int SortOrder { get; set; } = 0;
+        public Guid? DepartmentId { get; set; }
     }
 
     public class ActionObjectDto
@@ -67,6 +72,8 @@ namespace Application.DTOs
         public int SortOrder { get; set; }
         public Guid? ParentObjectId { get; set; }
         public string? ParentName { get; set; }
+        public Guid? DepartmentId { get; set; }
+        public string? DepartmentName { get; set; }
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
 

@@ -25,6 +25,7 @@ namespace Infrastructure.Services
         {
             var query = _context.ActionObjects
                 .Include(x => x.ChildObjects)
+                .Include(x => x.Department)
                 .Where(a => !a.IsDeleted && a.IsActive && a.ParentObjectId == parentId)
                 .Where(a => a.ObjectType == ObjectType.Folder || a.ObjectType == ObjectType.Feature)
                 .OrderBy(a => a.SortOrder);
@@ -325,6 +326,7 @@ namespace Infrastructure.Services
             var permissionIds = pairs.Select(p => p.PermissionId).Distinct().ToList();
 
             var actionObjects = await _context.ActionObjects
+                .Include(a => a.Department)
                 .Where(a => pageActionObjectIds.Contains(a.Id))
                 .ToDictionaryAsync(a => a.Id);
 
@@ -338,6 +340,7 @@ namespace Infrastructure.Services
             if (pageActionObjectIds.Count > 0)
             {
                 var children = await _context.ActionObjects
+                    .Include(c => c.Department)
                     .Where(c => c.ParentObjectId != null
                              && baseQuery.Select(x => x.ActionObjectId).Distinct().Contains(c.Id)
                              && pageActionObjectIds.Contains(c.ParentObjectId.Value)
@@ -398,6 +401,8 @@ namespace Infrastructure.Services
                         Icon = ao.Icon,
                         SortOrder = ao.SortOrder,
                         ParentObjectId = ao.ParentObjectId,
+                        DepartmentId = ao.DepartmentId,
+                        DepartmentName = ao.Department?.Name,
                         IsActive = ao.IsActive,
                         CreatedAt = ao.CreatedAt,
                         ChildObjects = childrenByParent.TryGetValue(aoId, out var kids)
@@ -415,6 +420,8 @@ namespace Infrastructure.Services
                                     Icon = c.Icon,
                                     SortOrder = c.SortOrder,
                                     ParentObjectId = c.ParentObjectId,
+                                    DepartmentId = c.DepartmentId,
+                                    DepartmentName = c.Department?.Name,
                                     IsActive = c.IsActive,
                                     CreatedAt = c.CreatedAt
                                 },
@@ -504,6 +511,7 @@ namespace Infrastructure.Services
             var permissionIds = pairs.Select(p => p.PermissionId).Distinct().ToList();
 
             var actionObjects = await _context.ActionObjects
+                .Include(a => a.Department)
                 .Where(a => pageActionObjectIds.Contains(a.Id))
                 .ToDictionaryAsync(a => a.Id);
 
@@ -533,6 +541,8 @@ namespace Infrastructure.Services
                         Icon = ao.Icon,
                         SortOrder = ao.SortOrder,
                         ParentObjectId = ao.ParentObjectId,
+                        DepartmentId = ao.DepartmentId,
+                        DepartmentName = ao.Department?.Name,
                         IsActive = ao.IsActive,
                         CreatedAt = ao.CreatedAt
                     },
